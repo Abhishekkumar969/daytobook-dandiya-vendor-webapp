@@ -376,6 +376,18 @@ function Scanner({ user }) {
                   {selectedSearchTicket.passes && selectedSearchTicket.passes.map(p => `${p.quantity}x ${p.name}`).join(', ')}
                 </span>
               </div>
+              {(selectedSearchTicket.visited || (selectedSearchTicket.visits && selectedSearchTicket.visits.visited)) && (
+                <div className="detail-row">
+                  <span>Scanned At</span>
+                  <span style={{ fontSize: '0.85em', textAlign: 'right' }}>
+                    {selectedSearchTicket.scannedAt?.toDate 
+                      ? selectedSearchTicket.scannedAt.toDate().toLocaleString('en-IN', { hour12: true, month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' }) 
+                      : (selectedSearchTicket.visits?.visitedAt 
+                          ? new Date(selectedSearchTicket.visits.visitedAt).toLocaleString('en-IN', { hour12: true, month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' }) 
+                          : 'Unknown Time')}
+                  </span>
+                </div>
+              )}
             </div>
             
             <div className="search-detail-actions" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -435,10 +447,6 @@ function Scanner({ user }) {
                   <span>
                     {scanResult.data.passes && scanResult.data.passes.map(p => `${p.quantity}x ${p.name}`).join(', ')}
                   </span>
-                </div>
-                <div className="detail-row">
-                  <span>Total Paid</span>
-                  <span>₹{scanResult.data.totalAmount}</span>
                 </div>
                 <div className="detail-row">
                   <span>Scanned At</span>
