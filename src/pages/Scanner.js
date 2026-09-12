@@ -78,7 +78,6 @@ function Scanner({ user }) {
         );
         
         // Check if torch is supported by this camera, or assume true for camera 0 (often back camera)
-        const track = html5QrCodeRef.current.getRunningTrackCameraCapabilities();
         const isCameraZero = activeCameraIndex === 0;
         const isBackCamera = cameras[activeCameraIndex]?.label.toLowerCase().includes('back') || 
                              cameras[activeCameraIndex]?.label.toLowerCase().includes('environment') ||
