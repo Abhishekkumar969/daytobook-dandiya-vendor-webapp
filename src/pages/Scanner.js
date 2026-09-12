@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { db } from '../firebase';
-import { CheckCircle, XCircle, AlertTriangle, RefreshCcw, Zap, ZapOff } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, RefreshCcw, Flashlight, FlashlightOff } from 'lucide-react';
 import firebase from 'firebase/compat/app';
 
 function Scanner({ user }) {
@@ -80,10 +80,13 @@ function Scanner({ user }) {
         // Check if torch is supported by this camera, or assume true for camera 0 (often back camera)
         const track = html5QrCodeRef.current.getRunningTrackCameraCapabilities();
         const isCameraZero = activeCameraIndex === 0;
+        const isCameraOne = activeCameraIndex === 1;
         const isBackCamera = cameras[activeCameraIndex]?.label.toLowerCase().includes('back') || 
                              cameras[activeCameraIndex]?.label.toLowerCase().includes('environment');
                              
-        if ((track && typeof track.torch !== 'undefined') || isCameraZero || isBackCamera) {
+        if (isCameraOne) {
+          setTorchSupported(false);
+        } else if ((track && typeof track.torch !== 'undefined') || isCameraZero || isBackCamera) {
           setTorchSupported(true);
         } else {
           setTorchSupported(false);
@@ -216,7 +219,7 @@ function Scanner({ user }) {
           )}
           {torchSupported && (
             <button className="icon-btn" onClick={toggleTorch}>
-              {torchOn ? <ZapOff size={24} /> : <Zap size={24} />}
+              {torchOn ? <FlashlightOff size={24} /> : <Flashlight size={24} />}
             </button>
           )}
         </div>
