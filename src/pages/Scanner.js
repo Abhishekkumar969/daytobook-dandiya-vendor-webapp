@@ -77,9 +77,13 @@ function Scanner({ user }) {
           onScanError
         );
         
-        // Check if torch is supported by this camera
+        // Check if torch is supported by this camera, or assume true for camera 0 (often back camera)
         const track = html5QrCodeRef.current.getRunningTrackCameraCapabilities();
-        if (track && typeof track.torch !== 'undefined') {
+        const isCameraZero = activeCameraIndex === 0;
+        const isBackCamera = cameras[activeCameraIndex]?.label.toLowerCase().includes('back') || 
+                             cameras[activeCameraIndex]?.label.toLowerCase().includes('environment');
+                             
+        if ((track && typeof track.torch !== 'undefined') || isCameraZero || isBackCamera) {
           setTorchSupported(true);
         } else {
           setTorchSupported(false);
@@ -130,6 +134,7 @@ function Scanner({ user }) {
       const data = ticketDoc.data();
 
       if (data.visited || (data.visits && data.visits.visited)) {
+        if (navigator.vibrate) navigator.vibrate(200);
         setScanResult({
           status: 'warning',
           message: 'TICKET ALREADY SCANNED!',
@@ -225,7 +230,7 @@ function Scanner({ user }) {
             <div className="result-icon">
               {scanResult.status === 'success' && <CheckCircle size={48} color="var(--success-color)" />}
               {scanResult.status === 'error' && <XCircle size={48} color="var(--error-color)" />}
-              {scanResult.status === 'warning' && <AlertTriangle size={48} color="var(--warning-color)" />}
+              {scanResult.status === 'warning' && <AlertTriangle size={48} color="var(--error-color)" />}
             </div>
             
             <h3>{scanResult.message}</h3>

@@ -447,7 +447,7 @@ body {
 
 .scan-result-card.success { border-color: var(--success-color); box-shadow: 0 0 40px var(--success-bg); }
 .scan-result-card.error { border-color: var(--error-color); box-shadow: 0 0 40px var(--error-bg); }
-.scan-result-card.warning { border-color: var(--warning-color); box-shadow: 0 0 40px var(--warning-bg); }
+.scan-result-card.warning { border-color: var(--error-color); box-shadow: 0 0 40px var(--error-bg); }
 
 .result-icon {
   margin-bottom: 1.25rem;
