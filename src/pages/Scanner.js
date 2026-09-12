@@ -264,6 +264,7 @@ function Scanner({ user }) {
         setSelectedSearchTicket(updatedSelected);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, allTickets]);
 
   const handleSearchChange = (e) => {
