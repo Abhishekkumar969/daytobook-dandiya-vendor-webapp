@@ -77,17 +77,18 @@ function Scanner({ user }) {
           onScanError
         );
         
-        // Check if torch is supported by this camera, or assume true for camera 0 (often back camera)
-        const isCameraZero = activeCameraIndex === 0;
-        const isBackCamera = cameras[activeCameraIndex]?.label.toLowerCase().includes('back') || 
-                             cameras[activeCameraIndex]?.label.toLowerCase().includes('environment') ||
-                             cameras[activeCameraIndex]?.label.toLowerCase().includes('rear');
+        const activeLabel = cameras[activeCameraIndex]?.label.toLowerCase() || '';
+        const isFrontCamera = activeLabel.includes('front') || activeLabel.includes('user');
+        const isBackCamera = activeLabel.includes('back') || activeLabel.includes('environment') || activeLabel.includes('rear');
                              
-        // Only show flashlight on the back camera (or camera 0)
-        if (isCameraZero || isBackCamera) {
+        // Only show flashlight if it's explicitly a back camera, or if it's camera 0 and NOT a front camera.
+        if (isFrontCamera) {
+          setTorchSupported(false);
+        } else if (isBackCamera) {
           setTorchSupported(true);
         } else {
-          setTorchSupported(false);
+          // Fallback if labels are weird
+          setTorchSupported(activeCameraIndex === 0);
         }
 
       } catch (err) {
