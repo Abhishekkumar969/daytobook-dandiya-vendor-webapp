@@ -92,6 +92,7 @@ function Scanner({ user }) {
 
     startScanner();
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCameraIndex, cameras]);
 
   const onScanSuccess = async (decodedText) => {
