@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { CheckCircle, XCircle, AlertTriangle, RefreshCcw, Flashlight, FlashlightOff, Search } from 'lucide-react';
 import firebase from 'firebase/compat/app';
 
-function Scanner({ user }) {
+function Scanner({ user, vendorData }) {
   const [scanResult, setScanResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const isProcessingRef = useRef(false);
@@ -22,9 +22,11 @@ function Scanner({ user }) {
   const [selectedSearchTicket, setSelectedSearchTicket] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // Use vendorData email if available, otherwise fallback to user.email
+  const cleanEmail = (vendorData?.email || user.email).toLowerCase().trim();
+
   // Fetch all tickets for search on mount
   useEffect(() => {
-    const cleanEmail = user.email.toLowerCase().trim();
     const rootCollectionName = `${cleanEmail}_ticket`;
 
     const unsubscribe = db.collection(rootCollectionName)
@@ -39,7 +41,8 @@ function Scanner({ user }) {
       });
 
     return () => unsubscribe();
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, vendorData?.email]);
 
   useEffect(() => {
     // 1. Get cameras
@@ -147,7 +150,6 @@ function Scanner({ user }) {
     setSearchQuery('');
 
     try {
-      const cleanEmail = user.email.toLowerCase().trim();
       const rootCollectionName = `${cleanEmail}_ticket`;
       const ticketRef = db.collection(rootCollectionName);
       

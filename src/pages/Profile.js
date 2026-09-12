@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { LogOut, Check, User as UserIcon, MapPin, Landmark, Calendar, Ticket, Plus, Trash2, ChevronDown, ChevronUp, Image as ImageIcon, UploadCloud } from 'lucide-react';
+import { LogOut, Check, User as UserIcon, MapPin, Landmark, Calendar, Ticket, Plus, Trash2, ChevronDown, ChevronUp, Image as ImageIcon, UploadCloud, Download } from 'lucide-react';
 
 // Utility: Compress & Convert to WebP
 const compressAndConvertToWebP = (file) => {
@@ -83,7 +83,7 @@ const uploadToCloudinary = async (file, folderPath) => {
   return result.secure_url;
 };
 
-function Profile({ user }) {
+function Profile({ user, vendorData }) {
   const [profileData, setProfileData] = useState({
     ownerName: '',
     organizer: '',
@@ -131,7 +131,7 @@ function Profile({ user }) {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const cleanEmail = user.email.trim();
+        const cleanEmail = (vendorData?.email || user.email).trim();
         const snapshot = await db.collection("EventTicketRegistration")
           .where("email", "==", cleanEmail)
           .get();
@@ -176,9 +176,9 @@ function Profile({ user }) {
           setProfileData(fetchedProfileData);
           setInitialProfileData(fetchedProfileData);
 
-          const fetchedPasses = (data.passes && Array.isArray(data.passes)) ? data.passes : [];
+          const fetchedPasses = (data.passes && Array.isArray(data.passes)) ? JSON.parse(JSON.stringify(data.passes)) : [];
           setPasses(fetchedPasses);
-          setInitialPasses(fetchedPasses);
+          setInitialPasses(JSON.parse(JSON.stringify(fetchedPasses)));
 
           if (data.image) {
             setMainImage(data.image);
@@ -212,7 +212,7 @@ function Profile({ user }) {
     };
 
     fetchProfile();
-  }, [user]);
+  }, [user, vendorData]);
 
   const isSectionDirty = (sectionName) => {
     if (!initialProfileData) return false;
@@ -278,7 +278,7 @@ function Profile({ user }) {
 
   const handlePassChange = (index, field, value) => {
     const newPasses = [...passes];
-    newPasses[index][field] = value;
+    newPasses[index] = { ...newPasses[index], [field]: value };
     setPasses(newPasses);
   };
 
@@ -310,7 +310,7 @@ function Profile({ user }) {
     setMessage('');
     try {
       const compressed = await compressAndConvertToWebP(file);
-      const cleanEmail = user.email.replace(/[^a-zA-Z0-9]/g, '_');
+      const cleanEmail = (vendorData?.email || user.email).replace(/[^a-zA-Z0-9]/g, '_');
       const folderPath = `Event Ticket/${(profileData.city || 'general').toLowerCase()}_${cleanEmail}`;
       const url = await uploadToCloudinary(compressed, folderPath);
       
@@ -382,15 +382,43 @@ function Profile({ user }) {
     signOut(auth);
   };
 
+  const handleDownloadApp = () => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      alert("To install on iOS: Tap the 'Share' icon at the bottom of your Safari browser, then select 'Add to Home Screen'.");
+      return;
+    }
+
+    if (window.deferredPrompt) {
+      window.deferredPrompt.prompt();
+      window.deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+        window.deferredPrompt = null;
+      });
+    } else {
+      alert("App is already installed, or installation is not supported on this browser.");
+    }
+  };
+
   if (loading) {
     return <div className="loading-screen">Loading Profile...</div>;
   }
 
   return (
     <div className="records-container" style={{ paddingBottom: '2rem' }}>
-      <div className="records-header" style={{ marginBottom: '1.5rem' }}>
-        <h2>Profile</h2>
-        <p>Manage your event registration details</p>
+      <div className="records-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2>Profile</h2>
+          <p>Manage your event registration details</p>
+        </div>
+        <button onClick={handleLogout} style={{ background: 'var(--bg-surface-light)', border: '1px solid var(--border-color)', color: 'var(--error-color)', padding: '6px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '500' }}>
+          <LogOut size={16} />
+          Logout
+        </button>
       </div>
 
       <div className="login-box" style={{ maxWidth: '100%', padding: '1rem 10px' }}>
@@ -652,10 +680,10 @@ function Profile({ user }) {
           </div>
         </div>
 
-        <div style={{ marginTop: '3rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem' }}>
-          <button onClick={handleLogout} className="primary-btn" style={{ backgroundColor: 'var(--error-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginTop: 0 }}>
-            <LogOut size={20} />
-            Logout Securely
+        <div style={{ marginTop: '3rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <button onClick={handleDownloadApp} className="primary-btn" style={{ backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginTop: 0 }}>
+            <Download size={20} />
+            Download App (APK / iOS)
           </button>
         </div>
       </div>

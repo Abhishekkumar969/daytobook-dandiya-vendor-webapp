@@ -34,7 +34,12 @@ body {
 .app-container {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh; /* Better for mobile browsers */
+  overflow: hidden;
+}
+
+.app-container.has-nav {
   padding-bottom: 70px; /* space for bottom nav */
 }
 
@@ -96,6 +101,8 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
+  overflow-y: auto;
+  position: relative;
 }
 
 /* Restrict width only on non-scanner pages */
@@ -352,7 +359,8 @@ body {
 .scanner-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 60px);
+  flex: 1;
+  height: 100%;
   position: relative;
   background: #000; /* Pure black for camera feel */
   overflow: hidden;
@@ -372,6 +380,15 @@ body {
   width: 100%;
   height: 100%;
   border: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+#reader__scan_region {
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
 }
 #reader video {
   object-fit: cover !important;

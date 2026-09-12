@@ -24,4 +24,4 @@ const analytics = typeof window !== "undefined" ? app.analytics() : null;
 
 const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
 
-export { db, auth, googleProvider, analytics, serverTimestamp, firebase };
+export { db, auth, googleProvider, analytics, serverTimestamp, firebase, firebaseConfig };

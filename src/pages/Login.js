@@ -17,15 +17,25 @@ function Login() {
     setLoading(true);
 
     try {
-      // 1. Check if vendor exists and is approved in EventTicketRegistration
-      const vendorSnapshot = await db.collection("EventTicketRegistration")
-        .where("email", "==", email.trim())
+      const emailLower = email.toLowerCase().trim();
+      
+      // 1. Check if vendor exists directly
+      let vendorSnapshot = await db.collection("EventTicketRegistration")
+        .where("email", "==", emailLower)
         .get();
 
+      // If not primary vendor, check if staff
       if (vendorSnapshot.empty) {
-        throw new Error("No vendor account found with this email.");
+        vendorSnapshot = await db.collection("EventTicketRegistration")
+          .where("accessEmails", "array-contains", emailLower)
+          .get();
+          
+        if (vendorSnapshot.empty) {
+          throw new Error("No vendor or staff account found with this email.");
+        }
       }
 
+      // 2. Check if the parent organizer is approved
       let isApproved = false;
       vendorSnapshot.forEach((doc) => {
         const data = doc.data();
@@ -35,11 +45,11 @@ function Login() {
       });
 
       if (!isApproved) {
-        throw new Error("Your account is not approved yet. Please contact admin.");
+        throw new Error("The associated organizer account is not approved yet.");
       }
 
-      // 2. Sign in with Firebase Auth
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      // 3. Sign in with Firebase Auth
+      await signInWithEmailAndPassword(auth, emailLower, password);
       
     } catch (err) {
       console.error(err);
@@ -53,7 +63,10 @@ function Login() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h2>Vendor Portal</h2>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <img src="/login-banner.jpg" alt="DayToBook Organizer App" style={{ width: '100%', maxWidth: '300px', borderRadius: '12px', marginBottom: '1rem', objectFit: 'cover' }} />
+        </div>
+        <h2 style={{ marginTop: 0 }}>Vendor Portal</h2>
         <form onSubmit={handleLogin}>
           <div className="form-group">
             <label>Email Address</label>
