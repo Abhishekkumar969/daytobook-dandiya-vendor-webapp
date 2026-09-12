@@ -440,6 +440,18 @@ function Scanner({ user }) {
                   <span>Total Paid</span>
                   <span>₹{scanResult.data.totalAmount}</span>
                 </div>
+                <div className="detail-row">
+                  <span>Scanned At</span>
+                  <span style={{ fontSize: '0.85em', textAlign: 'right' }}>
+                    {scanResult.status === 'success' 
+                      ? 'Just Now'
+                      : (scanResult.data.scannedAt?.toDate 
+                          ? scanResult.data.scannedAt.toDate().toLocaleString('en-IN', { hour12: true, month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' }) 
+                          : (scanResult.data.visits?.visitedAt 
+                              ? new Date(scanResult.data.visits.visitedAt).toLocaleString('en-IN', { hour12: true, month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' }) 
+                              : 'Unknown Time'))}
+                  </span>
+                </div>
               </div>
             )}
 
