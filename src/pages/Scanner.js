@@ -1,115 +1,194 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { db } from '../firebase';
-import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, RefreshCcw, Zap, ZapOff } from 'lucide-react';
 import firebase from 'firebase/compat/app';
 
 function Scanner({ user }) {
   const [scanResult, setScanResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const scannerRef = useRef(null);
+  const isProcessingRef = useRef(false);
+  
+  const html5QrCodeRef = useRef(null);
+  const [cameras, setCameras] = useState([]);
+  const [activeCameraIndex, setActiveCameraIndex] = useState(0);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
 
   useEffect(() => {
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      { 
-        fps: 10, 
-        qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const minEdgePercentage = 0.7; // 70% of the screen width/height
-          const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
-          return {
-            width: qrboxSize,
-            height: qrboxSize
-          };
-        },
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
-      },
-      false
-    );
+    // 1. Get cameras
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        setCameras(devices);
+        
+        // Try to find a back camera
+        let backCameraIndex = devices.findIndex(device => 
+          device.label.toLowerCase().includes('back') || 
+          device.label.toLowerCase().includes('environment') ||
+          device.label.toLowerCase().includes('rear')
+        );
+        
+        if (backCameraIndex !== -1) {
+          setActiveCameraIndex(backCameraIndex);
+        } else {
+          setActiveCameraIndex(0); // fallback to first
+        }
+      }
+    }).catch(err => {
+      console.error("Error getting cameras", err);
+    });
 
-    scannerRef.current = scanner;
+    // Cleanup
+    return () => {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop().catch(console.error);
+      }
+    };
+  }, []);
 
-    const onScanSuccess = async (decodedText) => {
-      if (isProcessing) return; // Prevent multiple scans at once
+  useEffect(() => {
+    if (cameras.length === 0) return;
+    
+    const startScanner = async () => {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        await html5QrCodeRef.current.stop().catch(console.error);
+      }
+
+      if (!html5QrCodeRef.current) {
+        html5QrCodeRef.current = new Html5Qrcode("reader");
+      }
       
-      setIsProcessing(true);
-      scanner.pause(true); // Pause scanning while checking DB
+      const cameraId = cameras[activeCameraIndex].id;
+      setTorchOn(false); // Reset torch state on camera switch
 
       try {
-        const cleanEmail = user.email.toLowerCase().trim();
-        const rootCollectionName = `${cleanEmail}_ticket`;
-        const ticketRef = db.collection(rootCollectionName);
+        await html5QrCodeRef.current.start(
+          cameraId,
+          {
+            fps: 10,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const minEdgePercentage = 0.7;
+              const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+              const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+              return { width: qrboxSize, height: qrboxSize };
+            }
+          },
+          onScanSuccess,
+          onScanError
+        );
         
-        // QR value is either the document ID or bookingId.
-        // We will try finding the doc by ID first.
-        let ticketDoc = await ticketRef.doc(decodedText).get();
-        
-        if (!ticketDoc.exists) {
-          // Try searching by bookingId
-          const snapshot = await ticketRef.where("bookingId", "==", decodedText).limit(1).get();
-          if (!snapshot.empty) {
-            ticketDoc = snapshot.docs[0];
-          }
-        }
-
-        if (!ticketDoc || !ticketDoc.exists) {
-          setScanResult({
-            status: 'error',
-            message: 'Invalid Ticket. Ticket not found in your records.'
-          });
-          return;
-        }
-
-        const data = ticketDoc.data();
-
-        if (data.visited || (data.visits && data.visits.visited)) {
-          setScanResult({
-            status: 'warning',
-            message: 'TICKET ALREADY SCANNED!',
-            data: data
-          });
+        // Check if torch is supported by this camera
+        const track = html5QrCodeRef.current.getRunningTrackCameraCapabilities();
+        if (track && typeof track.torch !== 'undefined') {
+          setTorchSupported(true);
         } else {
-          // Mark as visited
-          await ticketDoc.ref.update({
-            visited: true, // Legacy compatibility
-            'visits.visited': true,
-            'visits.visitedAt': new Date().toISOString(),
-            scannedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-
-          setScanResult({
-            status: 'success',
-            message: 'ACCESS GRANTED',
-            data: data
-          });
+          setTorchSupported(false);
         }
+
       } catch (err) {
-        console.error("Scan Error:", err);
-        setScanResult({
-          status: 'error',
-          message: 'Error processing ticket: ' + err.message
-        });
-      } finally {
-        setIsProcessing(false);
+        console.error("Failed to start scanner", err);
       }
     };
 
-    const onScanError = (err) => {
-      // Ignored for UX
-    };
+    startScanner();
 
-    scanner.render(onScanSuccess, onScanError);
+  }, [activeCameraIndex, cameras]);
 
-    return () => {
-      scanner.clear().catch(console.error);
-    };
-  }, [user, isProcessing]);
+  const onScanSuccess = async (decodedText) => {
+    if (isProcessingRef.current) return;
+    
+    setIsProcessing(true);
+    isProcessingRef.current = true;
+    
+    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.pause(true);
+    }
+
+    try {
+      const cleanEmail = user.email.toLowerCase().trim();
+      const rootCollectionName = `${cleanEmail}_ticket`;
+      const ticketRef = db.collection(rootCollectionName);
+      
+      let ticketDoc = await ticketRef.doc(decodedText).get();
+      
+      if (!ticketDoc.exists) {
+        const snapshot = await ticketRef.where("bookingId", "==", decodedText).limit(1).get();
+        if (!snapshot.empty) {
+          ticketDoc = snapshot.docs[0];
+        }
+      }
+
+      if (!ticketDoc || !ticketDoc.exists) {
+        setScanResult({
+          status: 'error',
+          message: 'Invalid Ticket. Ticket not found in your records.'
+        });
+        return;
+      }
+
+      const data = ticketDoc.data();
+
+      if (data.visited || (data.visits && data.visits.visited)) {
+        setScanResult({
+          status: 'warning',
+          message: 'TICKET ALREADY SCANNED!',
+          data: data
+        });
+      } else {
+        await ticketDoc.ref.update({
+          visited: true,
+          'visits.visited': true,
+          'visits.visitedAt': new Date().toISOString(),
+          scannedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        setScanResult({
+          status: 'success',
+          message: 'ACCESS GRANTED',
+          data: data
+        });
+      }
+    } catch (err) {
+      console.error("Scan Error:", err);
+      setScanResult({
+        status: 'error',
+        message: 'Error processing ticket: ' + err.message
+      });
+    } finally {
+      setIsProcessing(false);
+      isProcessingRef.current = false;
+    }
+  };
+
+  const onScanError = (err) => {
+    // Ignored for UX
+  };
 
   const handleReset = () => {
     setScanResult(null);
-    if (scannerRef.current) {
-      scannerRef.current.resume();
+    if (html5QrCodeRef.current && !html5QrCodeRef.current.isScanning) {
+        // Just in case it was fully stopped
+    } else if (html5QrCodeRef.current) {
+      html5QrCodeRef.current.resume();
+    }
+  };
+
+  const toggleCamera = () => {
+    if (cameras.length > 1) {
+      setActiveCameraIndex((prevIndex) => (prevIndex + 1) % cameras.length);
+    }
+  };
+
+  const toggleTorch = async () => {
+    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning && torchSupported) {
+      try {
+        await html5QrCodeRef.current.applyVideoConstraints({
+          advanced: [{ torch: !torchOn }]
+        });
+        setTorchOn(!torchOn);
+      } catch (err) {
+        console.error("Failed to toggle torch", err);
+      }
     }
   };
 
@@ -117,6 +196,25 @@ function Scanner({ user }) {
     <div className="scanner-container">
       <div className="scanner-box">
         <div id="reader"></div>
+        {/* Laser Line Overlay */}
+        <div className="scanner-overlay">
+           <div className="laser-line"></div>
+        </div>
+
+        {/* Custom Controls */}
+        <div className="scanner-controls">
+          {cameras.length > 1 && (
+            <button className="icon-btn" onClick={toggleCamera}>
+              <RefreshCcw size={24} />
+            </button>
+          )}
+          {torchSupported && (
+            <button className="icon-btn" onClick={toggleTorch}>
+              {torchOn ? <ZapOff size={24} /> : <Zap size={24} />}
+            </button>
+          )}
+        </div>
+
         {isProcessing && <div className="processing-overlay">Processing...</div>}
       </div>
 
