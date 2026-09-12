@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { db } from '../firebase';
-import { CheckCircle, XCircle, AlertTriangle, RefreshCcw, Flashlight, FlashlightOff } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, RefreshCcw, Flashlight, FlashlightOff, Search } from 'lucide-react';
 import firebase from 'firebase/compat/app';
 
 function Scanner({ user }) {
@@ -14,6 +14,32 @@ function Scanner({ user }) {
   const [activeCameraIndex, setActiveCameraIndex] = useState(0);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
+
+  // Search State
+  const [allTickets, setAllTickets] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredTickets, setFilteredTickets] = useState([]);
+  const [selectedSearchTicket, setSelectedSearchTicket] = useState(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  // Fetch all tickets for search on mount
+  useEffect(() => {
+    const cleanEmail = user.email.toLowerCase().trim();
+    const rootCollectionName = `${cleanEmail}_ticket`;
+
+    const unsubscribe = db.collection(rootCollectionName)
+      .onSnapshot((snapshot) => {
+        const fetchedRecords = [];
+        snapshot.forEach(doc => {
+          fetchedRecords.push({ id: doc.id, ...doc.data() });
+        });
+        setAllTickets(fetchedRecords);
+      }, (err) => {
+        console.error("Error fetching tickets for search: ", err);
+      });
+
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     // 1. Get cameras
@@ -101,15 +127,24 @@ function Scanner({ user }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCameraIndex, cameras]);
 
-  const onScanSuccess = async (decodedText) => {
+  const processTicketId = async (decodedText) => {
     if (isProcessingRef.current) return;
     
     setIsProcessing(true);
     isProcessingRef.current = true;
     
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-        html5QrCodeRef.current.pause(true);
+    try {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+          html5QrCodeRef.current.pause(true);
+      }
+    } catch (e) {
+      console.warn("Scanner pause error:", e);
     }
+    
+    // Clear search UI
+    setSelectedSearchTicket(null);
+    setShowDropdown(false);
+    setSearchQuery('');
 
     try {
       const cleanEmail = user.email.toLowerCase().trim();
@@ -168,6 +203,10 @@ function Scanner({ user }) {
     }
   };
 
+  const onScanSuccess = async (decodedText) => {
+    await processTicketId(decodedText);
+  };
+
   const onScanError = (err) => {
     // Ignored for UX
   };
@@ -200,8 +239,94 @@ function Scanner({ user }) {
     }
   };
 
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredTickets([]);
+      return;
+    }
+
+    const lowerQuery = searchQuery.toLowerCase();
+    const results = allTickets.filter(ticket => {
+      const name = (ticket.customerName || `${ticket.firstName || ''} ${ticket.lastName || ''}`).toLowerCase();
+      const phone = (ticket.customerPhone || ticket.phone || '').toLowerCase();
+      const id = (ticket.id || '').toLowerCase();
+      const bookingId = (ticket.bookingId || '').toLowerCase();
+      
+      return name.includes(lowerQuery) || phone.includes(lowerQuery) || id.includes(lowerQuery) || bookingId.includes(lowerQuery);
+    });
+    
+    setFilteredTickets(results);
+    
+    // Auto-update the selected ticket if it's currently open
+    if (selectedSearchTicket) {
+      const updatedSelected = results.find(t => t.id === selectedSearchTicket.id);
+      if (updatedSelected) {
+        setSelectedSearchTicket(updatedSelected);
+      }
+    }
+  }, [searchQuery, allTickets]);
+
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    if (query.trim() !== '') {
+      setShowDropdown(true);
+    } else {
+      setShowDropdown(false);
+    }
+  };
+
+  const handleSelectSearchTicket = (ticket) => {
+    setSelectedSearchTicket(ticket);
+    setShowDropdown(false);
+    try {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.pause(true);
+      }
+    } catch (e) {
+      console.warn("Scanner pause error:", e);
+    }
+  };
+
   return (
     <div className="scanner-container">
+      
+      {/* Search Bar Overlay */}
+      <div className="scanner-search-container">
+        <div className="search-input-wrapper">
+          <Search size={20} className="search-icon" />
+          <input 
+            type="text" 
+            className="scanner-search-input"
+            placeholder="Search ticket by name or phone..." 
+            value={searchQuery}
+            onChange={handleSearchChange}
+            onFocus={() => { if (filteredTickets.length > 0) setShowDropdown(true); }}
+          />
+        </div>
+        
+        {showDropdown && filteredTickets.length > 0 && (
+          <div className="search-dropdown">
+            {filteredTickets.map(ticket => (
+              <div 
+                key={ticket.id} 
+                className="search-result-item"
+                onClick={() => handleSelectSearchTicket(ticket)}
+              >
+                <div className="result-tkt" style={{ fontSize: '0.8rem', color: 'white', marginBottom: '2px' }}>
+                  {ticket.bookingId || ticket.id}
+                </div>
+                <div className="result-name">{ticket.customerName || `${ticket.firstName || ''} ${ticket.lastName || ''}`.trim() || 'Unknown'}</div>
+                <div className="result-phone">{ticket.customerPhone || ticket.phone}</div>
+                <div className="result-status">
+                  {(ticket.visited || (ticket.visits && ticket.visits.visited)) ? <span className="visited-text">Visited</span> : <span className="pending-text">Pending</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="scanner-box">
         <div id="reader"></div>
         {/* Laser Line Overlay */}
@@ -226,6 +351,63 @@ function Scanner({ user }) {
         {isProcessing && <div className="processing-overlay">Processing...</div>}
       </div>
 
+      {/* Manual Search Ticket Details */}
+      {selectedSearchTicket && !scanResult && (
+        <div className="scan-result-overlay">
+          <div className="scan-result-card search-detail-card">
+            <h3>Ticket Details</h3>
+            <div className="ticket-details" style={{ marginTop: '1rem', marginBottom: '1.5rem', textAlign: 'left' }}>
+              <div className="detail-row">
+                <span>TKT ID</span>
+                <span style={{ fontSize: '0.85em', wordBreak: 'break-all' }}>{selectedSearchTicket.bookingId || selectedSearchTicket.id}</span>
+              </div>
+              <div className="detail-row">
+                <span>Customer</span>
+                <span>{selectedSearchTicket.customerName || `${selectedSearchTicket.firstName || ''} ${selectedSearchTicket.lastName || ''}`.trim() || 'Unknown'}</span>
+              </div>
+              <div className="detail-row">
+                <span>Phone</span>
+                <span>{selectedSearchTicket.customerPhone || selectedSearchTicket.phone || 'No Phone'}</span>
+              </div>
+              <div className="detail-row">
+                <span>Passes</span>
+                <span>
+                  {selectedSearchTicket.passes && selectedSearchTicket.passes.map(p => `${p.quantity}x ${p.name}`).join(', ')}
+                </span>
+              </div>
+            </div>
+            
+            <div className="search-detail-actions" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {!(selectedSearchTicket.visited || (selectedSearchTicket.visits && selectedSearchTicket.visits.visited)) ? (
+                <button 
+                  onClick={() => processTicketId(selectedSearchTicket.bookingId || selectedSearchTicket.id)} 
+                  className="primary-btn"
+                >
+                  Mark as Visit
+                </button>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '10px', background: 'rgba(255,50,50,0.1)', color: 'var(--error-color)', borderRadius: '8px', fontWeight: 'bold' }}>
+                  TICKET ALREADY SCANNED
+                </div>
+              )}
+              <button 
+                onClick={() => {
+                  setSelectedSearchTicket(null);
+                  try {
+                    if (html5QrCodeRef.current) html5QrCodeRef.current.resume();
+                  } catch (e) {}
+                }} 
+                className="secondary-btn"
+                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Standard Scan Result Overlay */}
       {scanResult && (
         <div className="scan-result-overlay">
           <div className={`scan-result-card ${scanResult.status}`}>
