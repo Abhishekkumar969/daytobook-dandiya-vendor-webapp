@@ -51,6 +51,11 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const savedTheme = localStorage.getItem('app-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  useEffect(() => {
     let unsubscribeSnapshot = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {

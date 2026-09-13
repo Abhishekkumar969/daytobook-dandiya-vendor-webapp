@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { LogOut, Check, User as UserIcon, MapPin, Landmark, Calendar, Ticket, Plus, Trash2, ChevronDown, ChevronUp, Image as ImageIcon, UploadCloud, Download } from 'lucide-react';
+import { LogOut, Check, User as UserIcon, MapPin, Landmark, Calendar, Ticket, Plus, Trash2, ChevronDown, ChevronUp, Image as ImageIcon, UploadCloud, Download, Palette, Users, Handshake } from 'lucide-react';
 
 // Utility: Compress & Convert to WebP
 const compressAndConvertToWebP = (file) => {
@@ -84,6 +84,7 @@ const uploadToCloudinary = async (file, folderPath) => {
 };
 
 function Profile({ user, vendorData }) {
+  const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'dark');
   const [profileData, setProfileData] = useState({
     ownerName: '',
     organizer: '',
@@ -108,11 +109,18 @@ function Profile({ user, vendorData }) {
   });
 
   const [passes, setPasses] = useState([]);
+  const [artists, setArtists] = useState([]);
+  const [partners, setPartners] = useState([]);
   const [initialProfileData, setInitialProfileData] = useState(null);
   const [initialPasses, setInitialPasses] = useState([]);
+  const [initialArtists, setInitialArtists] = useState([]);
+  const [initialPartners, setInitialPartners] = useState([]);
   const [initialMainImage, setInitialMainImage] = useState(null);
   const [purchasedPassIds, setPurchasedPassIds] = useState(new Set());
-  
+  const [soldPassCounts, setSoldPassCounts] = useState({});
+  const [uploadingArtistIndex, setUploadingArtistIndex] = useState(null);
+  const [uploadingPartnerIndex, setUploadingPartnerIndex] = useState(null);
+
   // Media State
   const [mainImage, setMainImage] = useState(null);
   const [isUploadingMain, setIsUploadingMain] = useState(false);
@@ -121,7 +129,7 @@ function Profile({ user, vendorData }) {
 
   const [docId, setDocId] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Accordion State
   const [expandedSection, setExpandedSection] = useState(null);
   const [savingSection, setSavingSection] = useState(null);
@@ -129,124 +137,151 @@ function Profile({ user, vendorData }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const cleanEmail = (vendorData?.email || user.email).trim();
-        const snapshot = await db.collection("EventTicketRegistration")
-          .where("email", "==", cleanEmail)
-          .get();
+    const cleanEmail = (vendorData?.email || user.email).trim();
+    let unsubscribeProfile = () => {};
+    let unsubscribeTickets = () => {};
 
-        if (!snapshot.empty) {
-          const doc = snapshot.docs[0];
-          setDocId(doc.id);
-          const data = doc.data();
+    try {
+      unsubscribeProfile = db.collection("EventTicketRegistration")
+        .where("email", "==", cleanEmail)
+        .onSnapshot((snapshot) => {
+          if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            setDocId(doc.id);
+            const data = doc.data();
 
-          let p1 = data.phone || '';
-          let p2 = data.phone2 || '';
-          let p3 = data.phone3 || '';
+            let p1 = data.phone || '';
+            let p2 = data.phone2 || '';
+            let p3 = data.phone3 || '';
 
-          if (data.allPhones && Array.isArray(data.allPhones)) {
-            p1 = data.allPhones[0] || p1;
-            p2 = data.allPhones[1] || p2;
-            p3 = data.allPhones[2] || p3;
-          }
-
-          const fetchedProfileData = {
-            ownerName: data.ownerName || data.firstName || '',
-            organizer: data.organizer || data.companyName || '',
-            phone: p1,
-            phone2: p2,
-            phone3: p3,
-            name: data.name || '',
-            category: data.category || '',
-            date: data.date || '',
-            time: data.time || '',
-            about: data.about || '',
-            venueName: data.venueName || '',
-            location: data.location || '',
-            city: data.city || '',
-            state: data.state || '',
-            mapUrl: data.mapUrl || '',
-            beneficiaryName: data.beneficiaryName || '',
-            accountType: data.accountType || '',
-            bankName: data.bankName || '',
-            accountNumber: data.accountNumber || '',
-            bankIfsc: data.bankIfsc || ''
-          };
-          setProfileData(fetchedProfileData);
-          setInitialProfileData(fetchedProfileData);
-
-          const fetchedPasses = (data.passes && Array.isArray(data.passes)) ? JSON.parse(JSON.stringify(data.passes)) : [];
-          setPasses(fetchedPasses);
-          setInitialPasses(JSON.parse(JSON.stringify(fetchedPasses)));
-
-          if (data.image) {
-            setMainImage(data.image);
-            setInitialMainImage(data.image);
-          }
-          
-          // Fetch sold passes to prevent editing names
-          const collectionName = `${cleanEmail.toLowerCase()}_ticket`;
-          const ticketsSnap = await db.collection(collectionName).get();
-          const soldIds = new Set();
-          ticketsSnap.forEach(tDoc => {
-            const tData = tDoc.data();
-            if (tData.passes && Array.isArray(tData.passes)) {
-              tData.passes.forEach(p => {
-                if (p.passId) soldIds.add(p.passId);
-                if (p.name) soldIds.add(p.name);
-              });
+            if (data.allPhones && Array.isArray(data.allPhones)) {
+              p1 = data.allPhones[0] || p1;
+              p2 = data.allPhones[1] || p2;
+              p3 = data.allPhones[2] || p3;
             }
-          });
-          setPurchasedPassIds(soldIds);
 
-        } else {
-          setError('Profile not found.');
-        }
-      } catch (err) {
-        console.error("Error fetching profile: ", err);
-        setError('Failed to load profile.');
-      } finally {
-        setLoading(false);
-      }
+            const fetchedProfileData = {
+              ownerName: data.ownerName || data.firstName || '',
+              organizer: data.organizer || data.companyName || '',
+              phone: p1,
+              phone2: p2,
+              phone3: p3,
+              name: data.name || '',
+              category: data.category || '',
+              date: data.date || '',
+              time: data.time || '',
+              about: data.about || '',
+              venueName: data.venueName || '',
+              location: data.location || '',
+              city: data.city || '',
+              state: data.state || '',
+              mapUrl: data.mapUrl || '',
+              beneficiaryName: data.beneficiaryName || '',
+              accountType: data.accountType || '',
+              bankName: data.bankName || '',
+              accountNumber: data.accountNumber || '',
+              bankIfsc: data.bankIfsc || ''
+            };
+            setProfileData(fetchedProfileData);
+            setInitialProfileData(fetchedProfileData);
+
+            const fetchedPasses = (data.passes && Array.isArray(data.passes)) ? JSON.parse(JSON.stringify(data.passes)) : [];
+            setPasses(fetchedPasses);
+            setInitialPasses(JSON.parse(JSON.stringify(fetchedPasses)));
+
+            const fetchedArtists = (data.artists && Array.isArray(data.artists)) ? data.artists : [];
+            setArtists(fetchedArtists);
+            setInitialArtists(JSON.parse(JSON.stringify(fetchedArtists)));
+
+            const fetchedPartners = (data.partners && Array.isArray(data.partners)) ? data.partners : [];
+            setPartners(fetchedPartners);
+            setInitialPartners(JSON.parse(JSON.stringify(fetchedPartners)));
+
+            if (data.image) {
+              setMainImage(data.image);
+              setInitialMainImage(data.image);
+            }
+          } else {
+            setError('Profile not found.');
+          }
+          setLoading(false);
+        }, (err) => {
+          console.error("Error fetching profile: ", err);
+          setError('Failed to load profile.');
+          setLoading(false);
+        });
+
+      const collectionName = `${cleanEmail.toLowerCase()}_ticket`;
+      unsubscribeTickets = db.collection(collectionName).onSnapshot((ticketsSnap) => {
+        const soldIds = new Set();
+        const counts = {};
+        ticketsSnap.forEach(tDoc => {
+          const tData = tDoc.data();
+          if (tData.passes && Array.isArray(tData.passes)) {
+            tData.passes.forEach(p => {
+              const qty = Number(p.quantity) || 1;
+              if (p.passId) {
+                soldIds.add(p.passId);
+                counts[p.passId] = (counts[p.passId] || 0) + qty;
+              }
+              if (p.name) {
+                soldIds.add(p.name);
+                counts[p.name] = (counts[p.name] || 0) + qty;
+              }
+            });
+          }
+        });
+        setPurchasedPassIds(soldIds);
+        setSoldPassCounts(counts);
+      }, (err) => {
+        console.error("Error fetching tickets: ", err);
+      });
+
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load profile.');
+      setLoading(false);
+    }
+
+    return () => {
+      unsubscribeProfile();
+      unsubscribeTickets();
     };
-
-    fetchProfile();
   }, [user, vendorData]);
 
   const isSectionDirty = (sectionName) => {
     if (!initialProfileData) return false;
-    
+
     const ts = (val) => (val || '').toString().trim();
 
     if (sectionName === 'Contact Info') {
       return ts(profileData.ownerName) !== ts(initialProfileData.ownerName) ||
-             ts(profileData.organizer) !== ts(initialProfileData.organizer) ||
-             ts(profileData.phone) !== ts(initialProfileData.phone) ||
-             ts(profileData.phone2) !== ts(initialProfileData.phone2) ||
-             ts(profileData.phone3) !== ts(initialProfileData.phone3);
+        ts(profileData.organizer) !== ts(initialProfileData.organizer) ||
+        ts(profileData.phone) !== ts(initialProfileData.phone) ||
+        ts(profileData.phone2) !== ts(initialProfileData.phone2) ||
+        ts(profileData.phone3) !== ts(initialProfileData.phone3);
     }
     if (sectionName === 'Event Details') {
       return ts(profileData.name) !== ts(initialProfileData.name) ||
-             ts(profileData.category) !== ts(initialProfileData.category) ||
-             ts(profileData.date) !== ts(initialProfileData.date) ||
-             ts(profileData.time) !== ts(initialProfileData.time) ||
-             ts(profileData.about) !== ts(initialProfileData.about) ||
-             mainImage !== initialMainImage;
+        ts(profileData.category) !== ts(initialProfileData.category) ||
+        ts(profileData.date) !== ts(initialProfileData.date) ||
+        ts(profileData.time) !== ts(initialProfileData.time) ||
+        ts(profileData.about) !== ts(initialProfileData.about) ||
+        mainImage !== initialMainImage;
     }
     if (sectionName === 'Venue Details') {
       return ts(profileData.venueName) !== ts(initialProfileData.venueName) ||
-             ts(profileData.location) !== ts(initialProfileData.location) ||
-             ts(profileData.city) !== ts(initialProfileData.city) ||
-             ts(profileData.state) !== ts(initialProfileData.state) ||
-             ts(profileData.mapUrl) !== ts(initialProfileData.mapUrl);
+        ts(profileData.location) !== ts(initialProfileData.location) ||
+        ts(profileData.city) !== ts(initialProfileData.city) ||
+        ts(profileData.state) !== ts(initialProfileData.state) ||
+        ts(profileData.mapUrl) !== ts(initialProfileData.mapUrl);
     }
     if (sectionName === 'Bank Details') {
       return ts(profileData.beneficiaryName) !== ts(initialProfileData.beneficiaryName) ||
-             ts(profileData.accountType) !== ts(initialProfileData.accountType) ||
-             ts(profileData.bankName) !== ts(initialProfileData.bankName) ||
-             ts(profileData.accountNumber) !== ts(initialProfileData.accountNumber) ||
-             ts(profileData.bankIfsc) !== ts(initialProfileData.bankIfsc);
+        ts(profileData.accountType) !== ts(initialProfileData.accountType) ||
+        ts(profileData.bankName) !== ts(initialProfileData.bankName) ||
+        ts(profileData.accountNumber) !== ts(initialProfileData.accountNumber) ||
+        ts(profileData.bankIfsc) !== ts(initialProfileData.bankIfsc);
     }
     if (sectionName === 'Event Passes') {
       // Need to compare passes after trimming string fields
@@ -266,7 +301,24 @@ function Profile({ user, vendorData }) {
       }));
       return JSON.stringify(cleanPasses) !== JSON.stringify(cleanInitialPasses);
     }
+    if (sectionName === 'Event Artists') {
+      return JSON.stringify(artists) !== JSON.stringify(initialArtists);
+    }
+    if (sectionName === 'Event Partners') {
+      return JSON.stringify(partners) !== JSON.stringify(initialPartners);
+    }
+
     return false;
+  };
+
+  const isAnySectionDirty = () => {
+    return isSectionDirty('Contact Info') ||
+      isSectionDirty('Event Details') ||
+      isSectionDirty('Event Artists') ||
+      isSectionDirty('Event Partners') ||
+      isSectionDirty('Venue Details') ||
+      isSectionDirty('Bank Details') ||
+      isSectionDirty('Event Passes');
   };
 
   const handleChange = (e) => {
@@ -281,6 +333,59 @@ function Profile({ user, vendorData }) {
     newPasses[index] = { ...newPasses[index], [field]: value };
     setPasses(newPasses);
   };
+
+  const handleArtistChange = (index, field, value) => {
+    const newArtists = [...artists];
+    newArtists[index] = { ...newArtists[index], [field]: value };
+    setArtists(newArtists);
+  };
+  const addArtist = () => setArtists([...artists, { id: Date.now(), name: '', role: '', image: '' }]);
+  const removeArtist = (index) => setArtists(artists.filter((_, i) => i !== index));
+
+  const handlePartnerChange = (index, field, value) => {
+    const newPartners = [...partners];
+    newPartners[index] = { ...newPartners[index], [field]: value };
+    setPartners(newPartners);
+  };
+  const addPartner = () => setPartners([...partners, { id: Date.now(), name: '', role: '', image: '' }]);
+  const removePartner = (index) => setPartners(partners.filter((_, i) => i !== index));
+
+  const handleArtistImageUpload = async (e, index) => {
+    const file = e.target.files[0];
+    if (!file || !docId) return;
+    setUploadingArtistIndex(index);
+    try {
+      const compressed = await compressAndConvertToWebP(file);
+      const cleanEmail = (vendorData?.email || user.email).replace(/[^a-zA-Z0-9]/g, '_');
+      const folderPath = `Event Ticket/${(profileData.city || 'general').toLowerCase()}_${cleanEmail}/artists`;
+      const url = await uploadToCloudinary(compressed, folderPath);
+      handleArtistChange(index, 'image', url);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to upload artist image.");
+    } finally {
+      setUploadingArtistIndex(null);
+    }
+  };
+
+  const handlePartnerImageUpload = async (e, index) => {
+    const file = e.target.files[0];
+    if (!file || !docId) return;
+    setUploadingPartnerIndex(index);
+    try {
+      const compressed = await compressAndConvertToWebP(file);
+      const cleanEmail = (vendorData?.email || user.email).replace(/[^a-zA-Z0-9]/g, '_');
+      const folderPath = `Event Ticket/${(profileData.city || 'general').toLowerCase()}_${cleanEmail}/partners`;
+      const url = await uploadToCloudinary(compressed, folderPath);
+      handlePartnerChange(index, 'image', url);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to upload partner image.");
+    } finally {
+      setUploadingPartnerIndex(null);
+    }
+  };
+
 
   const addPass = () => {
     const passId = Math.random().toString(36).substring(2, 15);
@@ -313,7 +418,7 @@ function Profile({ user, vendorData }) {
       const cleanEmail = (vendorData?.email || user.email).replace(/[^a-zA-Z0-9]/g, '_');
       const folderPath = `Event Ticket/${(profileData.city || 'general').toLowerCase()}_${cleanEmail}`;
       const url = await uploadToCloudinary(compressed, folderPath);
-      
+
       setMainImage(url);
       setMessage('Banner image uploaded! Click tick to save everything.');
     } catch (err) {
@@ -331,6 +436,20 @@ function Profile({ user, vendorData }) {
     setSavingSection(sectionName);
     setMessage('');
     setError('');
+
+    // Validate Pass Limits
+    if (sectionName === 'Event Passes' || sectionName === 'Save All') {
+      for (const p of passes) {
+        if (p.limit && p.limit.trim() !== '') {
+          const sold = soldPassCounts[p.passId] || soldPassCounts[p.name] || 0;
+          if (Number(p.limit) < sold) {
+            setError(`Cannot set limit for "${p.name}" below already sold quantity (${sold}).`);
+            setSavingSection(null);
+            return;
+          }
+        }
+      }
+    }
 
     try {
       const dataToSave = {
@@ -356,16 +475,20 @@ function Profile({ user, vendorData }) {
         accountNumber: profileData.accountNumber,
         bankIfsc: profileData.bankIfsc,
         passes: passes,
+        artists: artists,
+        partners: partners,
         image: mainImage,
         updatedAt: new Date().toISOString()
       };
 
       await db.collection("EventTicketRegistration").doc(docId).set(dataToSave, { merge: true });
       setMessage(`${sectionName} saved successfully!`);
-      
+
       // Update initial state to reflect saved data
-      setInitialProfileData({...profileData});
+      setInitialProfileData({ ...profileData });
       setInitialPasses([...passes]);
+      setInitialArtists([...artists]);
+      setInitialPartners([...partners]);
       setInitialMainImage(mainImage);
 
       setTimeout(() => setMessage(''), 3000);
@@ -380,6 +503,13 @@ function Profile({ user, vendorData }) {
 
   const handleLogout = () => {
     signOut(auth);
+  };
+
+  const handleThemeChange = (e) => {
+    const newTheme = e.target.value;
+    setTheme(newTheme);
+    localStorage.setItem('app-theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
   };
 
   const handleDownloadApp = () => {
@@ -410,19 +540,23 @@ function Profile({ user, vendorData }) {
 
   return (
     <div className="records-container" style={{ paddingBottom: '2rem' }}>
-      <div className="records-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="records-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100, backgroundColor: 'var(--bg-color)', padding: '1rem' }}>
         <div>
           <h2>Profile</h2>
-          <p>Manage your event registration details</p>
         </div>
-        <button onClick={handleLogout} style={{ background: 'var(--bg-surface-light)', border: '1px solid var(--border-color)', color: 'var(--error-color)', padding: '6px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '500' }}>
-          <LogOut size={16} />
-          Logout
+        <button
+          className="save-tick-btn"
+          onClick={(e) => handleSave(e, 'All changes')}
+          disabled={savingSection !== null || isUploadingMain || !isAnySectionDirty()}
+          style={{ width: '40px', height: '40px' }}
+          title="Save all changes"
+        >
+          <Check size={24} />
         </button>
       </div>
 
       <div className="login-box" style={{ maxWidth: '100%', padding: '1rem 10px' }}>
-        
+
         {message && <div className="success-toast">{message}</div>}
         {error && <div className="error-toast">{error}</div>}
 
@@ -433,11 +567,6 @@ function Profile({ user, vendorData }) {
               <UserIcon size={18} />Contact Info
             </div>
             <div className="accordion-actions">
-              {expandedSection === 'Contact Info' && (
-                <button className="save-tick-btn" onClick={(e) => handleSave(e, 'Contact Info')} disabled={savingSection === 'Contact Info' || !isSectionDirty('Contact Info')}>
-                  <Check size={20} />
-                </button>
-              )}
               {expandedSection === 'Contact Info' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </div>
           </div>
@@ -480,11 +609,6 @@ function Profile({ user, vendorData }) {
               <Calendar size={18} /> Event Details & Media
             </div>
             <div className="accordion-actions">
-              {expandedSection === 'Event Details' && (
-                <button className="save-tick-btn" onClick={(e) => handleSave(e, 'Event Details')} disabled={savingSection === 'Event Details' || isUploadingMain || !isSectionDirty('Event Details')}>
-                  <Check size={20} />
-                </button>
-              )}
               {expandedSection === 'Event Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </div>
           </div>
@@ -513,9 +637,9 @@ function Profile({ user, vendorData }) {
               <label>About the Event</label>
               <textarea name="about" value={profileData.about} onChange={handleChange} rows={4} className="custom-textarea" />
             </div>
-            
+
             <hr className="divider" style={{ margin: '1rem 0' }} />
-            
+
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
                 <ImageIcon size={18} /> Main Banner Photo
@@ -527,7 +651,7 @@ function Profile({ user, vendorData }) {
                   <img src={mainImage} alt="Banner Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
                 ) : (
                   <div style={{ padding: '2rem', textAlign: 'center', border: '2px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                    <UploadCloud size={32} style={{ margin: '0 auto 0.5rem auto', display: 'block' }}/>
+                    <UploadCloud size={32} style={{ margin: '0 auto 0.5rem auto', display: 'block' }} />
                     <p>Click to upload banner</p>
                   </div>
                 )}
@@ -538,6 +662,115 @@ function Profile({ user, vendorData }) {
           </div>
         </div>
 
+        {/* Event Artists Section */}
+        <div className={`accordion-item ${expandedSection === 'Event Artists' ? 'expanded' : ''}`}>
+          <div className="accordion-header" onClick={() => toggleSection('Event Artists')}>
+            <div className="accordion-title">
+              <Users size={18} /> Event Artists
+            </div>
+            <div className="accordion-actions">
+              {expandedSection === 'Event Artists' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </div>
+          </div>
+          <div className="accordion-body">
+            <div className="passes-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {artists.map((artist, index) => (
+                <div key={artist.id || index} style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-color)', position: 'relative' }}>
+                  <button type="button" onClick={() => removeArtist(index)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--error-color)', cursor: 'pointer', zIndex: 10 }}>
+                    <Trash2 size={18} />
+                  </button>
+                  <div className="form-row" style={{ alignItems: 'flex-start' }}>
+                    <div style={{ flex: '0 0 100px', marginRight: '1rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Photo</label>
+                      <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100px', height: '100px', border: '1px dashed var(--border-color)', borderRadius: '8px', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
+                        {uploadingArtistIndex === index ? (
+                          <span style={{ fontSize: '0.8rem' }}>Uploading...</span>
+                        ) : artist.image ? (
+                          <img src={artist.image} alt="Artist" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <>
+                            <UploadCloud size={24} style={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }} />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Upload</span>
+                          </>
+                        )}
+                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleArtistImageUpload(e, index)} />
+                      </label>
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>Name</label>
+                        <input type="text" value={artist.name} onChange={(e) => handleArtistChange(index, 'name', e.target.value)} required />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>Role / Instrument</label>
+                        <input type="text" value={artist.role} onChange={(e) => handleArtistChange(index, 'role', e.target.value)} required />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addArtist} style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface-light)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.75rem 1rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+              <Plus size={18} /> Add Artist
+            </button>
+          </div>
+        </div>
+
+        {/* Event Partners Section */}
+        <div className={`accordion-item ${expandedSection === 'Event Partners' ? 'expanded' : ''}`}>
+          <div className="accordion-header" onClick={() => toggleSection('Event Partners')}>
+            <div className="accordion-title">
+              <Handshake size={18} /> Event Partners
+            </div>
+            <div className="accordion-actions">
+              {expandedSection === 'Event Partners' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </div>
+          </div>
+          <div className="accordion-body">
+            <div className="passes-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {partners.map((partner, index) => (
+                <div key={partner.id || index} style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-color)', position: 'relative' }}>
+                  <button type="button" onClick={() => removePartner(index)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--error-color)', cursor: 'pointer', zIndex: 10 }}>
+                    <Trash2 size={18} />
+                  </button>
+                  <div className="form-row" style={{ alignItems: 'flex-start' }}>
+                    <div style={{ flex: '0 0 100px', marginRight: '1rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Logo/Photo</label>
+                      <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100px', height: '100px', border: '1px dashed var(--border-color)', borderRadius: '8px', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
+                        {uploadingPartnerIndex === index ? (
+                          <span style={{ fontSize: '0.8rem' }}>Uploading...</span>
+                        ) : partner.image ? (
+                          <img src={partner.image} alt="Partner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <>
+                            <UploadCloud size={24} style={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }} />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Upload</span>
+                          </>
+                        )}
+                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handlePartnerImageUpload(e, index)} />
+                      </label>
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>Partner Name</label>
+                        <input type="text" value={partner.name} onChange={(e) => handlePartnerChange(index, 'name', e.target.value)} required />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>Role / Type (e.g. Sponsor)</label>
+                        <input type="text" value={partner.role} onChange={(e) => handlePartnerChange(index, 'role', e.target.value)} required />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addPartner} style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface-light)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.75rem 1rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+              <Plus size={18} /> Add Partner
+            </button>
+          </div>
+        </div>
+
+
         {/* Section 3: Venue Details */}
         <div className={`accordion-item ${expandedSection === 'Venue Details' ? 'expanded' : ''}`}>
           <div className="accordion-header" onClick={() => toggleSection('Venue Details')}>
@@ -545,11 +778,6 @@ function Profile({ user, vendorData }) {
               <MapPin size={18} /> Venue Details
             </div>
             <div className="accordion-actions">
-              {expandedSection === 'Venue Details' && (
-                <button className="save-tick-btn" onClick={(e) => handleSave(e, 'Venue Details')} disabled={savingSection === 'Venue Details' || !isSectionDirty('Venue Details')}>
-                  <Check size={20} />
-                </button>
-              )}
               {expandedSection === 'Venue Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </div>
           </div>
@@ -586,18 +814,50 @@ function Profile({ user, vendorData }) {
               <Ticket size={18} /> Event Passes
             </div>
             <div className="accordion-actions">
-              {expandedSection === 'Event Passes' && (
-                <button className="save-tick-btn" onClick={(e) => handleSave(e, 'Event Passes')} disabled={savingSection === 'Event Passes' || !isSectionDirty('Event Passes')}>
-                  <Check size={20} />
-                </button>
-              )}
               {expandedSection === 'Event Passes' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </div>
           </div>
           <div className="accordion-body">
+            {/* Limit Alerts */}
+            {passes.filter(p => p.limit && p.limit.trim() !== '').length > 0 && (
+              <div style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '12px', background: 'var(--bg-surface-light)', border: '1px solid var(--border-color)' }}>
+                <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-primary)', fontSize: '1rem' }}>Pass Limits Overview</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {passes.map((pass, index) => {
+                    if (!pass.limit || pass.limit.trim() === '') return null;
+                    const sold = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
+                    const limit = Number(pass.limit);
+                    const isReached = sold >= limit;
+                    
+                    return (
+                      <div key={`alert-${pass.passId || index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '0.75rem', background: isReached ? 'var(--error-bg)' : 'var(--bg-color)', border: `1px solid ${isReached ? 'var(--error-color)' : 'var(--border-color)'}`, borderRadius: '8px' }}>
+                        <div style={{ flex: 1, minWidth: '150px' }}>
+                          <strong>{pass.name || 'Unnamed Pass'}</strong>
+                          <div style={{ fontSize: '0.85rem', color: isReached ? 'var(--error-color)' : 'var(--text-secondary)', marginTop: '4px' }}>
+                            {isReached ? 'Limit Reached!' : `${Math.max(0, limit - sold)} remaining`}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Sold: <strong style={{ color: 'var(--text-primary)' }}>{sold}</strong> / Limit: </span>
+                          <input 
+                            type="number" 
+                            min={sold}
+                            value={pass.limit}
+                            onChange={(e) => handlePassChange(index, 'limit', e.target.value)}
+                            style={{ width: '80px', padding: '0.4rem', border: `1px solid ${isReached ? 'var(--error-color)' : 'var(--border-color)'}`, borderRadius: '6px', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="passes-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {passes.map((pass, index) => {
                 const isPurchased = purchasedPassIds.has(pass.passId) || purchasedPassIds.has(pass.name);
+                const soldCount = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
                 return (
                   <div key={pass.passId || index} style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-color)', position: 'relative' }}>
                     {!isPurchased && (
@@ -615,8 +875,8 @@ function Profile({ user, vendorData }) {
                         <input type="number" min="0" value={pass.price} onChange={(e) => handlePassChange(index, 'price', e.target.value)} required />
                       </div>
                       <div className="form-group half">
-                        <label>Limit / Max Capacity</label>
-                        <input type="number" min="0" value={pass.limit} onChange={(e) => handlePassChange(index, 'limit', e.target.value)} placeholder="Leave blank if unlimited" />
+                        <label>Limit / Max Capacity {soldCount > 0 && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>(Sold: {soldCount})</span>}</label>
+                        <input type="number" min={soldCount} value={pass.limit} onChange={(e) => handlePassChange(index, 'limit', e.target.value)} placeholder="Leave blank if unlimited" />
                       </div>
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
@@ -640,11 +900,6 @@ function Profile({ user, vendorData }) {
               <Landmark size={18} /> Bank Details
             </div>
             <div className="accordion-actions">
-              {expandedSection === 'Bank Details' && (
-                <button className="save-tick-btn" onClick={(e) => handleSave(e, 'Bank Details')} disabled={savingSection === 'Bank Details' || !isSectionDirty('Bank Details')}>
-                  <Check size={20} />
-                </button>
-              )}
               {expandedSection === 'Bank Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </div>
           </div>
@@ -680,10 +935,97 @@ function Profile({ user, vendorData }) {
           </div>
         </div>
 
+        {/* Section 6: App Theme */}
+        <div className={`accordion-item ${expandedSection === 'App Theme' ? 'expanded' : ''}`}>
+          <div className="accordion-header" onClick={() => toggleSection('App Theme')}>
+            <div className="accordion-title">
+              <Palette size={18} /> App Theme
+            </div>
+            <div className="accordion-actions">
+              {expandedSection === 'App Theme' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </div>
+          </div>
+          <div className="accordion-body" style={{ padding: '0.5rem' }}>
+            <div
+              onClick={() => handleThemeChange({ target: { value: 'dark' } })}
+              style={{
+                padding: '12px 16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                borderRadius: '8px',
+                background: theme === 'dark' ? 'var(--bg-color)' : 'transparent',
+                marginBottom: '4px',
+                border: theme === 'dark' ? '1px solid var(--primary-color)' : '1px solid transparent'
+              }}
+            >
+              <span style={{ fontWeight: theme === 'dark' ? '600' : '400', color: theme === 'dark' ? 'var(--primary-color)' : 'var(--text-primary)' }}>Dark Theme</span>
+              {theme === 'dark' && <Check size={18} color="var(--success-color)" />}
+            </div>
+            <div
+              onClick={() => handleThemeChange({ target: { value: 'blue' } })}
+              style={{
+                padding: '12px 16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                borderRadius: '8px',
+                background: theme === 'blue' ? 'var(--bg-color)' : 'transparent',
+                marginBottom: '4px',
+                border: theme === 'blue' ? '1px solid var(--primary-color)' : '1px solid transparent'
+              }}
+            >
+              <span style={{ fontWeight: theme === 'blue' ? '600' : '400', color: theme === 'blue' ? 'var(--primary-color)' : 'var(--text-primary)' }}>Ocean Theme</span>
+              {theme === 'blue' && <Check size={18} color="var(--success-color)" />}
+            </div>
+            <div
+              onClick={() => handleThemeChange({ target: { value: 'mud' } })}
+              style={{
+                padding: '12px 16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                borderRadius: '8px',
+                background: theme === 'mud' ? 'var(--bg-color)' : 'transparent',
+                marginBottom: '4px',
+                border: theme === 'mud' ? '1px solid var(--primary-color)' : '1px solid transparent'
+              }}
+            >
+              <span style={{ fontWeight: theme === 'mud' ? '600' : '400', color: theme === 'mud' ? 'var(--primary-color)' : 'var(--text-primary)' }}>Mud Theme</span>
+              {theme === 'mud' && <Check size={18} color="var(--success-color)" />}
+            </div>
+            <div
+              onClick={() => handleThemeChange({ target: { value: 'light' } })}
+              style={{
+                padding: '12px 16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                borderRadius: '8px',
+                background: theme === 'light' ? 'var(--bg-color)' : 'transparent',
+                border: theme === 'light' ? '1px solid var(--primary-color)' : '1px solid transparent'
+              }}
+            >
+              <span style={{ fontWeight: theme === 'light' ? '600' : '400', color: theme === 'light' ? 'var(--primary-color)' : 'var(--text-primary)' }}>Light Theme</span>
+              {theme === 'light' && <Check size={18} color="var(--success-color)" />}
+            </div>
+          </div>
+        </div>
+
         <div style={{ marginTop: '3rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
           <button onClick={handleDownloadApp} className="primary-btn" style={{ backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginTop: 0 }}>
             <Download size={20} />
             Download App (APK / iOS)
+          </button>
+
+          <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid var(--error-color)', color: 'var(--error-color)', padding: '10px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '1rem', fontWeight: '500', alignSelf: 'flex-start', marginTop: '1rem' }}>
+            <LogOut size={18} />
+            Logout
           </button>
         </div>
       </div>

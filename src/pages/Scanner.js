@@ -316,7 +316,7 @@ function Scanner({ user, vendorData }) {
                 className="search-result-item"
                 onClick={() => handleSelectSearchTicket(ticket)}
               >
-                <div className="result-tkt" style={{ fontSize: '0.8rem', color: 'white', marginBottom: '2px' }}>
+                <div className="result-tkt" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>
                   {ticket.bookingId || ticket.id}
                 </div>
                 <div className="result-name">{ticket.customerName || `${ticket.firstName || ''} ${ticket.lastName || ''}`.trim() || 'Unknown'}</div>
