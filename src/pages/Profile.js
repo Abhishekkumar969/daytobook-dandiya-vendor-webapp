@@ -135,6 +135,7 @@ function Profile({ user, vendorData }) {
   const [savingSection, setSavingSection] = useState(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     const cleanEmail = (vendorData?.email || user.email).trim();
@@ -559,6 +560,65 @@ function Profile({ user, vendorData }) {
 
         {message && <div className="success-toast">{message}</div>}
         {error && <div className="error-toast">{error}</div>}
+
+        {/* Event Link & QR Code */}
+        <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+          <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>Your Booking Link</h3>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Add this booking link and QR code to your Instagram reels, posts, or promotional materials so customers can easily book tickets.</p>
+          
+          {(() => {
+            const formatStr = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+            const categoryInCity = `${formatStr(profileData.category || 'events')}-in-${formatStr(profileData.city || 'india')}`;
+            const venueInCity = `${formatStr(profileData.venueName || 'venue')}-${formatStr(profileData.city || 'india')}`;
+            const nameSlug = formatStr(profileData.name || 'hardcoded-event');
+            const eventUrl = `https://daytobook.com/event-tickets/${categoryInCity}/${venueInCity}/${nameSlug}`;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(eventUrl)}`;
+
+            const downloadQR = async () => {
+                try {
+                    const response = await fetch(qrUrl);
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `${nameSlug}-QR.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } catch (err) {
+                    console.error('Error downloading QR code:', err);
+                    window.open(qrUrl, '_blank');
+                }
+            };
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%' }}>
+                <img src={qrUrl} alt="Event QR Code" style={{ width: '150px', height: '150px', borderRadius: '8px', border: '2px solid var(--border-color)', padding: '5px', backgroundColor: 'white' }} />
+                
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={downloadQR} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface-light)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500' }}>
+                    <Download size={18} /> Download QR
+                  </button>
+                  <button 
+                    onClick={() => {
+                        navigator.clipboard.writeText(eventUrl);
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2000);
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', border: 'none', background: copiedLink ? 'var(--success-color)' : 'var(--primary-color)', color: 'white', cursor: 'pointer', fontWeight: '500' }}
+                  >
+                    {copiedLink ? <Check size={18} /> : null} {copiedLink ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
+
+                <div style={{ width: '100%', padding: '12px 15px', backgroundColor: 'var(--bg-surface-light)', borderRadius: '8px', border: '1px solid var(--border-color)', wordBreak: 'break-all', fontSize: '0.9rem', color: 'var(--text-primary)', textAlign: 'center' }}>
+                    <a href={eventUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>{eventUrl}</a>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
 
         {/* Section 1: Basic Info */}
         <div className={`accordion-item ${expandedSection === 'Contact Info' ? 'expanded' : ''}`}>
