@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { CheckCircle, Clock } from 'lucide-react';
+import { CheckCircle, Clock, Download } from 'lucide-react';
 
 function Records({ user, vendorData }) {
   const [records, setRecords] = useState([]);
@@ -62,8 +62,10 @@ function Records({ user, vendorData }) {
     return acc + (Number(passTotal) || Number(r.totalAmount) || 0);
   }, 0);
 
-  // Deduct 5% from total revenue
-  const totalRevenue = (rawTotalRevenue * 0.95).toFixed(2);
+  // Deduct 5% commission and 18% GST on the commission
+  const commission = rawTotalRevenue * 0.05;
+  const gst = commission * 0.18;
+  const totalRevenue = (rawTotalRevenue - commission - gst).toFixed(2);
   const totalTickets = records.reduce((acc, r) => {
     if (r.passes && Array.isArray(r.passes)) {
       return acc + r.passes.reduce((passAcc, p) => passAcc + (Number(p.quantity) || 0), 0);
@@ -114,6 +116,27 @@ function Records({ user, vendorData }) {
     }
   };
 
+  const handleDownloadApp = () => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      alert("To install on iOS: Tap the 'Share' icon at the bottom of your Safari browser, then select 'Add to Home Screen'.");
+      return;
+    }
+    if (window.deferredPrompt) {
+      window.deferredPrompt.prompt();
+      window.deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        }
+        window.deferredPrompt = null;
+      });
+    } else {
+      alert("App is already installed, or installation is not supported on this browser.");
+    }
+  };
+
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
   return (
     <div className="records-container">
       {/* Toast Notification */}
@@ -140,14 +163,27 @@ function Records({ user, vendorData }) {
         </div>
       )}
 
-      <div className="records-header">
-        <h2>Dashboard Overview</h2>
-        <p>Real-time analytics for your event</p>
+      <div className="records-header" style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Dashboard Overview</h2>
+            <p style={{ margin: '0.2rem 0 0 0' }}>Real-time analytics for your event</p>
+          </div>
+          {!isStandalone && (
+            <button 
+              onClick={handleDownloadApp}
+              style={{ background: 'var(--primary-color)', border: 'none', color: '#fff', padding: '8px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
+              title="Download App"
+            >
+              <Download size={20} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="stats-grid">
         <div className="stat-card">
-          <h4>Total Revenue - 5%</h4>
+          <h4>Total Revenue (After Fees)</h4>
           <p>₹{totalRevenue}</p>
         </div>
         <div className="stat-card">
@@ -155,6 +191,10 @@ function Records({ user, vendorData }) {
           <p>{totalVisited} / {totalTickets}</p>
         </div>
       </div>
+
+      <p style={{ color: 'gray', fontSize: '0.85rem', margin: '0.5rem 0 1rem 0', textAlign: 'center' }}>
+        * Total Revenue (After Fees) is calculated by deducting a 5% commission and 18% GST on that commission from the gross revenue.
+      </p>
 
       {/* Pass Limits & Sales (Moved above Recent Bookings) */}
       {profilePasses.length > 0 && (

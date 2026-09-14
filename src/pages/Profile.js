@@ -818,41 +818,7 @@ function Profile({ user, vendorData }) {
             </div>
           </div>
           <div className="accordion-body">
-            {/* Limit Alerts */}
-            {passes.filter(p => p.limit && p.limit.trim() !== '').length > 0 && (
-              <div style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '12px', background: 'var(--bg-surface-light)', border: '1px solid var(--border-color)' }}>
-                <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-primary)', fontSize: '1rem' }}>Pass Limits Overview</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {passes.map((pass, index) => {
-                    if (!pass.limit || pass.limit.trim() === '') return null;
-                    const sold = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
-                    const limit = Number(pass.limit);
-                    const isReached = sold >= limit;
-                    
-                    return (
-                      <div key={`alert-${pass.passId || index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '0.75rem', background: isReached ? 'var(--error-bg)' : 'var(--bg-color)', border: `1px solid ${isReached ? 'var(--error-color)' : 'var(--border-color)'}`, borderRadius: '8px' }}>
-                        <div style={{ flex: 1, minWidth: '150px' }}>
-                          <strong>{pass.name || 'Unnamed Pass'}</strong>
-                          <div style={{ fontSize: '0.85rem', color: isReached ? 'var(--error-color)' : 'var(--text-secondary)', marginTop: '4px' }}>
-                            {isReached ? 'Limit Reached!' : `${Math.max(0, limit - sold)} remaining`}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Sold: <strong style={{ color: 'var(--text-primary)' }}>{sold}</strong> / Limit: </span>
-                          <input 
-                            type="number" 
-                            min={sold}
-                            value={pass.limit}
-                            onChange={(e) => handlePassChange(index, 'limit', e.target.value)}
-                            style={{ width: '80px', padding: '0.4rem', border: `1px solid ${isReached ? 'var(--error-color)' : 'var(--border-color)'}`, borderRadius: '6px', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* Limit Alerts Removed as requested */}
 
             <div className="passes-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {passes.map((pass, index) => {
