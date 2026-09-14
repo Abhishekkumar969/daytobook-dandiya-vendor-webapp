@@ -18,7 +18,7 @@ function Login() {
 
     try {
       const emailLower = email.toLowerCase().trim();
-      
+
       // 1. Check if vendor exists directly
       let vendorSnapshot = await db.collection("EventTicketRegistration")
         .where("email", "==", emailLower)
@@ -29,7 +29,7 @@ function Login() {
         vendorSnapshot = await db.collection("EventTicketRegistration")
           .where("accessEmails", "array-contains", emailLower)
           .get();
-          
+
         if (vendorSnapshot.empty) {
           throw new Error("No vendor or staff account found with this email.");
         }
@@ -50,7 +50,7 @@ function Login() {
 
       // 3. Sign in with Firebase Auth
       await signInWithEmailAndPassword(auth, emailLower, password);
-      
+
     } catch (err) {
       console.error(err);
       setError(err.message || "Failed to login. Please check your credentials.");
@@ -63,27 +63,27 @@ function Login() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h2 style={{ marginTop: 0, textAlign: 'center', marginBottom: '1.5rem' }}>Vendor Portal</h2>
+        <h2 style={{ marginTop: 0, textAlign: 'center', marginBottom: '1.5rem' }}>Event Ticketing Vendors</h2>
         <form onSubmit={handleLogin}>
           <div className="form-group">
             <label>Email Address</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your registered email"
-              required 
+              required
             />
           </div>
           <div className="form-group">
             <label>Password</label>
             <div style={{ position: 'relative' }}>
-              <input 
-                type={showPassword ? "text" : "password"} 
+              <input
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
-                required 
+                required
                 style={{ paddingRight: '40px', width: '100%', boxSizing: 'border-box' }}
               />
               <button
@@ -111,7 +111,7 @@ function Login() {
           <button type="submit" className="primary-btn" disabled={loading}>
             {loading ? 'Logging in...' : 'Login to Dashboard'}
           </button>
-          
+
           {error && <div className="error-message">{error}</div>}
         </form>
       </div>

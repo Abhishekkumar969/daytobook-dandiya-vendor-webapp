@@ -168,20 +168,22 @@ body {
 }
 
 .login-box {
-  background: var(--bg-surface-light);
-  padding: 3rem 2.5rem;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
   animation: fadeIn 0.5s ease-out forwards;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .login-box h2 {
@@ -228,7 +230,6 @@ body {
 }
 
 .accordion-item.expanded {
-  border-color: var(--primary-color);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
@@ -267,7 +268,7 @@ body {
 }
 
 .accordion-item.expanded .accordion-body {
-  padding: 10px;
+  padding: 10px 5px;
   max-height: 2000px;
   /* arbitrary large value */
   opacity: 1;
@@ -589,6 +590,13 @@ body {
 }
 
 /* Records Page */
+.records-container {
+  padding: 10px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 .records-header {
   margin-bottom: 2rem;
 }
@@ -612,7 +620,7 @@ body {
 
 .stat-card {
   background: var(--bg-surface);
-  padding: 1.5rem;
+  padding: 0.5rem 0rem;
   border-radius: 16px;
   border: 1px solid var(--border-color);
   text-align: center;
@@ -866,6 +874,7 @@ body {
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;

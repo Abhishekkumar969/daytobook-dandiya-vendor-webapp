@@ -158,8 +158,8 @@ function Records({ user, vendorData }) {
 
       {/* Pass Limits & Sales (Moved above Recent Bookings) */}
       {profilePasses.length > 0 && (
-        <div style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '12px', background: 'var(--bg-surface-light)', border: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '1.5rem', padding: '0.5rem', borderRadius: '12px', background: 'var(--bg-surface-light)', border: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem' }}>Ticket Sales & Limits</h4>
             {isLimitsChanged && (
               <button onClick={saveLimits} className="primary-btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto' }}>
@@ -173,7 +173,7 @@ function Records({ user, vendorData }) {
               const hasLimit = pass.limit && pass.limit.trim() !== '';
               const limit = hasLimit ? Number(pass.limit) : Infinity;
               const isReached = hasLimit && sold >= limit;
-              
+
               return (
                 <div key={`alert-${pass.passId || index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '0.75rem', background: isReached ? 'var(--error-bg)' : 'var(--bg-color)', border: `1px solid ${isReached ? 'var(--error-color)' : 'var(--border-color)'}`, borderRadius: '8px' }}>
                   <div style={{ flex: 1 }}>
@@ -184,8 +184,8 @@ function Records({ user, vendorData }) {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                     <span>Sold: <strong style={{ color: 'var(--text-primary)' }}>{sold}</strong> / Limit:</span>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       min={sold}
                       value={pass.limit || ''}
                       onChange={(e) => handleLimitChange(index, e.target.value)}
@@ -206,9 +206,9 @@ function Records({ user, vendorData }) {
           <p>No bookings found.</p>
         ) : (
           records.map((record) => (
-            <div 
-              key={record.id} 
-              className="record-item" 
+            <div
+              key={record.id}
+              className="record-item"
               style={{ display: 'block', cursor: 'pointer' }}
               onClick={() => setExpandedRecordId(expandedRecordId === record.id ? null : record.id)}
             >
@@ -239,24 +239,24 @@ function Records({ user, vendorData }) {
                 <div className="record-expanded-details" style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     <div>
-                      <strong style={{color: 'var(--text-primary)', display: 'block', marginBottom: '4px'}}>Email</strong>
+                      <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Email</strong>
                       {record.customerEmail || record.email || 'N/A'}
                     </div>
                     <div>
-                      <strong style={{color: 'var(--text-primary)', display: 'block', marginBottom: '4px'}}>Transaction ID</strong>
+                      <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Transaction ID</strong>
                       {record.transactionId || record.id || 'N/A'}
                     </div>
                     <div>
-                      <strong style={{color: 'var(--text-primary)', display: 'block', marginBottom: '4px'}}>Total Amount (Paid)</strong>
+                      <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Total Amount (Paid)</strong>
                       ₹{record.subtotal || (record.passes ? record.passes.reduce((acc, p) => acc + ((Number(String(p.price).replace(/[^0-9.-]+/g, "")) || 0) * (Number(p.quantity) || 1)), 0) || record.totalAmount : record.totalAmount)}
                     </div>
                     <div>
-                      <strong style={{color: 'var(--text-primary)', display: 'block', marginBottom: '4px'}}>Purchased On</strong>
+                      <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Purchased On</strong>
                       {record.createdAt ? (record.createdAt.toDate ? record.createdAt.toDate().toLocaleString() : new Date(record.createdAt).toLocaleString()) : 'N/A'}
                     </div>
                     {(record.visited || (record.visits && record.visits.visited)) && (
                       <div>
-                        <strong style={{color: 'var(--text-primary)', display: 'block', marginBottom: '4px'}}>Scanned At</strong>
+                        <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Scanned At</strong>
                         {record.visits?.scannedAt ? (record.visits.scannedAt.toDate ? record.visits.scannedAt.toDate().toLocaleString() : new Date(record.visits.scannedAt).toLocaleString()) : (record.scannedAt ? (record.scannedAt.toDate ? record.scannedAt.toDate().toLocaleString() : new Date(record.scannedAt).toLocaleString()) : 'N/A')}
                       </div>
                     )}
