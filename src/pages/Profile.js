@@ -913,8 +913,10 @@ function Profile({ user, vendorData }) {
                 <label>Account Type</label>
                 <select name="accountType" value={profileData.accountType} onChange={handleChange} className="custom-select">
                   <option value="">Select Type</option>
-                  <option value="Savings">Savings</option>
-                  <option value="Current">Current</option>
+                  <option value="Current account">Current account</option>
+                  <option value="Saving account">Saving account</option>
+                  <option value="Salary account">Salary account</option>
+                  <option value="NRI account">NRI account</option>
                 </select>
               </div>
             </div>
