@@ -63,7 +63,7 @@ function Login() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h2 style={{ marginTop: 0, textAlign: 'center', marginBottom: '1.5rem' }}>Event Ticketing Vendors</h2>
+        <h2 style={{ marginTop: 0, textAlign: 'center', marginBottom: '1.5rem' }}>Event Ticketing by DayToBook</h2>
         <form onSubmit={handleLogin}>
           <div className="form-group">
             <label>Email Address</label>

@@ -72,6 +72,7 @@ function Records({ user, vendorData }) {
     }
     return acc + 1;
   }, 0);
+
   const totalVisited = records.reduce((acc, r) => {
     if (r.visited || (r.visits && r.visits.visited)) {
       if (r.passes && Array.isArray(r.passes)) {
@@ -170,7 +171,7 @@ function Records({ user, vendorData }) {
             <p style={{ margin: '0.2rem 0 0 0' }}>Real-time analytics for your event</p>
           </div>
           {!isStandalone && (
-            <button 
+            <button
               onClick={handleDownloadApp}
               style={{ background: 'var(--primary-color)', border: 'none', color: '#fff', padding: '8px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
               title="Download App"

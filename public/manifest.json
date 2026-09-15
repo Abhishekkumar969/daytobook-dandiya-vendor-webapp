@@ -1,6 +1,6 @@
 {
-  "short_name": "Vendor Portal",
-  "name": "DayToBook Event Ticket",
+  "short_name": "EventTicket",
+  "name": "EventTicket DayToBook",
   "icons": [
     {
       "src": "favicon.ico",
