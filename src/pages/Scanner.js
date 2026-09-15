@@ -67,17 +67,14 @@ function Scanner({ user, vendorData }) {
       console.error("Error getting cameras", err);
     });
 
-    // Cleanup
-    return () => {
-      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-        html5QrCodeRef.current.stop().catch(console.error);
-      }
-    };
+    // Cleanup handled in the second useEffect to avoid race conditions
   }, []);
 
   useEffect(() => {
     if (cameras.length === 0) return;
     
+    let isMounted = true;
+
     const startScanner = async () => {
       if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
         await html5QrCodeRef.current.stop().catch(console.error);
@@ -106,6 +103,16 @@ function Scanner({ user, vendorData }) {
           onScanError
         );
         
+        // If the component unmounted while the camera was starting up
+        if (!isMounted) {
+          if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+            html5QrCodeRef.current.stop().then(() => {
+              if (html5QrCodeRef.current) html5QrCodeRef.current.clear();
+            }).catch(console.error);
+          }
+          return;
+        }
+
         const activeLabel = cameras[activeCameraIndex]?.label.toLowerCase() || '';
         const isFrontCamera = activeLabel.includes('front') || activeLabel.includes('user');
         const isBackCamera = activeLabel.includes('back') || activeLabel.includes('environment') || activeLabel.includes('rear');
@@ -127,6 +134,16 @@ function Scanner({ user, vendorData }) {
 
     startScanner();
 
+    return () => {
+      isMounted = false;
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop().then(() => {
+          if (html5QrCodeRef.current) {
+            html5QrCodeRef.current.clear();
+          }
+        }).catch(console.error);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCameraIndex, cameras]);
 

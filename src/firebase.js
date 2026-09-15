@@ -2,6 +2,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import 'firebase/compat/auth';
 import 'firebase/compat/analytics';
+import 'firebase/compat/messaging';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -22,6 +23,17 @@ const auth = app.auth();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 const analytics = typeof window !== "undefined" ? app.analytics() : null;
 
+// Initialize Firebase Cloud Messaging safely (with browser support check)
+let messaging = null;
+try {
+  if (typeof window !== "undefined" && firebase.messaging && firebase.messaging.isSupported()) {
+    messaging = firebase.messaging();
+  }
+} catch (e) {
+  console.warn("FCM messaging initialization warning:", e);
+}
+
 const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
 
-export { db, auth, googleProvider, analytics, serverTimestamp, firebase, firebaseConfig };
+export { db, auth, googleProvider, analytics, messaging, serverTimestamp, firebase, firebaseConfig };
+

@@ -11,6 +11,8 @@ import Profile from './pages/Profile';
 import Access from './pages/Access';
 import './App.css';
 
+import { requestAndSaveOrganizerToken } from './services/notificationService';
+
 function Nav({ vendorData }) {
   const location = useLocation();
   const access = vendorData?.access || [];
@@ -132,6 +134,12 @@ function App() {
     const savedTheme = localStorage.getItem('app-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
+
+  useEffect(() => {
+    if (vendorData?.email) {
+      requestAndSaveOrganizerToken(vendorData.email);
+    }
+  }, [vendorData?.email]);
 
   useEffect(() => {
     let unsubscribeSnapshot = null;
