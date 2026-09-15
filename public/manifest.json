@@ -3,25 +3,23 @@
   "name": "EventTicket DayToBook",
   "icons": [
     {
-      "src": "favicon.ico",
+      "src": "https://res.cloudinary.com/do7z8byh3/image/upload/v1789470834/Daytobook_2_dtofoh.png",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "type": "image/png"
     },
     {
-      "src": "logo192.png",
+      "src": "https://res.cloudinary.com/do7z8byh3/image/upload/v1789470834/Daytobook_2_dtofoh.png",
       "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any maskable"
+      "sizes": "192x192"
     },
     {
-      "src": "logo512.png",
+      "src": "https://res.cloudinary.com/do7z8byh3/image/upload/v1789470834/Daytobook_2_dtofoh.png",
       "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any maskable"
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#0ea5e9",
-  "background_color": "#0f172a"
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff"
 }
