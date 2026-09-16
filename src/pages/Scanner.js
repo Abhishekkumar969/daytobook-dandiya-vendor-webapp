@@ -136,12 +136,16 @@ function Scanner({ user, vendorData }) {
 
     return () => {
       isMounted = false;
-      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-        html5QrCodeRef.current.stop().then(() => {
-          if (html5QrCodeRef.current) {
-            html5QrCodeRef.current.clear();
-          }
-        }).catch(console.error);
+      if (html5QrCodeRef.current) {
+        const scanner = html5QrCodeRef.current;
+        html5QrCodeRef.current = null; // Prevent re-use of stale instance
+        if (scanner.isScanning) {
+          scanner.stop().then(() => {
+            scanner.clear();
+          }).catch(console.error);
+        } else {
+          try { scanner.clear(); } catch(e) {}
+        }
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

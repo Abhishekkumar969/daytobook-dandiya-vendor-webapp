@@ -108,6 +108,20 @@ function InstallPrompt({ onClose }) {
   );
 }
 
+function ScannerRoute({ user, vendorData }) {
+  const location = useLocation();
+  // Generate a unique key every time we navigate TO this route,
+  // so Scanner fully remounts with a fresh camera init.
+  const [mountKey, setMountKey] = React.useState(Date.now());
+
+  React.useEffect(() => {
+    // Every time this route becomes active, bump the key
+    setMountKey(Date.now());
+  }, [location.key]);
+
+  return <Scanner key={mountKey} user={user} vendorData={vendorData} />;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [vendorData, setVendorData] = useState(null);
@@ -247,7 +261,7 @@ function App() {
             <Route path="/login" element={user && vendorData ? <Navigate to={getFallbackRoute(vendorData.access)} /> : <Login />} />
             <Route path="/" element={
               user && vendorData ? (
-                vendorData.access.includes('scan') ? <Scanner user={user} vendorData={vendorData} /> : <Navigate to={getFallbackRoute(vendorData.access)} />
+                vendorData.access.includes('scan') ? <ScannerRoute user={user} vendorData={vendorData} /> : <Navigate to={getFallbackRoute(vendorData.access)} />
               ) : <Navigate to="/login" />
             } />
             <Route path="/records" element={
