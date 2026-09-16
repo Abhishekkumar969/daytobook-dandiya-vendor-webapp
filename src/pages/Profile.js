@@ -92,6 +92,7 @@ function Profile({ user, vendorData }) {
     phone2: '',
     phone3: '',
     name: '',
+    status: '',
     category: '',
     date: '',
     time: '',
@@ -168,6 +169,7 @@ function Profile({ user, vendorData }) {
               phone2: p2,
               phone3: p3,
               name: data.name || '',
+              status: data.status || '',
               category: data.category || '',
               date: data.date || '',
               time: data.time || '',
@@ -513,26 +515,71 @@ function Profile({ user, vendorData }) {
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
-  const handleDownloadApp = () => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
-      alert("To install on iOS: Tap the 'Share' icon at the bottom of your Safari browser, then select 'Add to Home Screen'.");
-      return;
-    }
 
-    if (window.deferredPrompt) {
-      window.deferredPrompt.prompt();
-      window.deferredPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        } else {
-          console.log('User dismissed the install prompt');
-        }
-        window.deferredPrompt = null;
-      });
-    } else {
-      alert("App is already installed, or installation is not supported on this browser.");
+
+  const getSectionCompletion = (section) => {
+    let filled = 0;
+    let total = 1;
+    switch (section) {
+      case 'Contact Info':
+        total = 5;
+        filled = [profileData.ownerName, profileData.organizer, profileData.phone, profileData.phone2, profileData.phone3].filter(v => v && v.toString().trim() !== '').length;
+        break;
+      case 'Event Details':
+        total = 6;
+        filled = [profileData.name, profileData.category, profileData.date, profileData.time, profileData.about, mainImage].filter(v => v && v.toString().trim() !== '').length;
+        break;
+      case 'Event Artists':
+        total = 1;
+        filled = artists.length > 0 ? 1 : 0;
+        break;
+      case 'Event Partners':
+        total = 1;
+        filled = partners.length > 0 ? 1 : 0;
+        break;
+      case 'Venue Details':
+        total = 5;
+        filled = [profileData.venueName, profileData.location, profileData.city, profileData.state, profileData.mapUrl].filter(v => v && v.toString().trim() !== '').length;
+        break;
+      case 'Event Passes':
+        total = 1;
+        filled = passes.length > 0 ? 1 : 0;
+        break;
+      case 'Bank Details':
+        total = 5;
+        filled = [profileData.beneficiaryName, profileData.accountType, profileData.bankName, profileData.accountNumber, profileData.bankIfsc].filter(v => v && v.toString().trim() !== '').length;
+        break;
+      case 'App Theme':
+        total = 1;
+        filled = 1;
+        break;
+      default:
+        total = 1;
+        filled = 1;
     }
+    return Math.round((filled / total) * 100);
+  };
+
+  const renderPercentage = (section) => {
+    const percent = getSectionCompletion(section);
+    let color = 'var(--error-color)';
+    if (percent === 100) color = 'var(--success-color)';
+    else if (percent > 0) color = 'var(--warning-color)';
+    
+    return (
+      <span style={{ 
+        marginLeft: '10px', 
+        fontSize: '0.8rem', 
+        color: color, 
+        fontWeight: 'bold',
+        background: 'transparent',
+        padding: '2px 6px',
+        borderRadius: '4px',
+        border: `1px solid ${color}`
+      }}>
+        {percent}%
+      </span>
+    );
   };
 
   if (loading) {
@@ -557,6 +604,12 @@ function Profile({ user, vendorData }) {
       </div>
 
       <div className="login-box" style={{ maxWidth: '100%', padding: '1rem 10px' }}>
+
+        {profileData.status === 'pending' && (
+          <div style={{ backgroundColor: 'var(--warning-bg, #fff3cd)', color: 'var(--warning-text, #856404)', padding: '12px', borderRadius: '8px', marginBottom: '16px', border: '1px solid var(--warning-border, #ffeeba)', textAlign: 'center', fontWeight: 'bold' }}>
+            Your record verification is in pending
+          </div>
+        )}
 
         {message && <div className="success-toast">{message}</div>}
         {error && <div className="error-toast">{error}</div>}
@@ -624,7 +677,7 @@ function Profile({ user, vendorData }) {
         <div className={`accordion-item ${expandedSection === 'Contact Info' ? 'expanded' : ''}`}>
           <div className="accordion-header" onClick={() => toggleSection('Contact Info')}>
             <div className="accordion-title">
-              <UserIcon size={18} />Contact Info
+              <UserIcon size={18} />Contact Info {renderPercentage('Contact Info')}
             </div>
             <div className="accordion-actions">
               {expandedSection === 'Contact Info' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -666,7 +719,7 @@ function Profile({ user, vendorData }) {
         <div className={`accordion-item ${expandedSection === 'Event Details' ? 'expanded' : ''}`}>
           <div className="accordion-header" onClick={() => toggleSection('Event Details')}>
             <div className="accordion-title">
-              <Calendar size={18} /> Event Details & Media
+              <Calendar size={18} /> Event Details & Media {renderPercentage('Event Details')}
             </div>
             <div className="accordion-actions">
               {expandedSection === 'Event Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -726,7 +779,7 @@ function Profile({ user, vendorData }) {
         <div className={`accordion-item ${expandedSection === 'Event Artists' ? 'expanded' : ''}`}>
           <div className="accordion-header" onClick={() => toggleSection('Event Artists')}>
             <div className="accordion-title">
-              <Users size={18} /> Event Artists
+              <Users size={18} /> Event Artists {renderPercentage('Event Artists')}
             </div>
             <div className="accordion-actions">
               {expandedSection === 'Event Artists' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -780,7 +833,7 @@ function Profile({ user, vendorData }) {
         <div className={`accordion-item ${expandedSection === 'Event Partners' ? 'expanded' : ''}`}>
           <div className="accordion-header" onClick={() => toggleSection('Event Partners')}>
             <div className="accordion-title">
-              <Handshake size={18} /> Event Partners
+              <Handshake size={18} /> Event Partners {renderPercentage('Event Partners')}
             </div>
             <div className="accordion-actions">
               {expandedSection === 'Event Partners' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -835,7 +888,7 @@ function Profile({ user, vendorData }) {
         <div className={`accordion-item ${expandedSection === 'Venue Details' ? 'expanded' : ''}`}>
           <div className="accordion-header" onClick={() => toggleSection('Venue Details')}>
             <div className="accordion-title">
-              <MapPin size={18} /> Venue Details
+              <MapPin size={18} /> Venue Details {renderPercentage('Venue Details')}
             </div>
             <div className="accordion-actions">
               {expandedSection === 'Venue Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -871,7 +924,7 @@ function Profile({ user, vendorData }) {
         <div className={`accordion-item ${expandedSection === 'Event Passes' ? 'expanded' : ''}`}>
           <div className="accordion-header" onClick={() => toggleSection('Event Passes')}>
             <div className="accordion-title">
-              <Ticket size={18} /> Event Passes
+              <Ticket size={18} /> Event Passes {renderPercentage('Event Passes')}
             </div>
             <div className="accordion-actions">
               {expandedSection === 'Event Passes' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -923,7 +976,7 @@ function Profile({ user, vendorData }) {
         <div className={`accordion-item ${expandedSection === 'Bank Details' ? 'expanded' : ''}`}>
           <div className="accordion-header" onClick={() => toggleSection('Bank Details')}>
             <div className="accordion-title">
-              <Landmark size={18} /> Bank Details
+              <Landmark size={18} /> Bank Details {renderPercentage('Bank Details')}
             </div>
             <div className="accordion-actions">
               {expandedSection === 'Bank Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -1046,10 +1099,7 @@ function Profile({ user, vendorData }) {
 
         <div style={{ marginTop: '3rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-          <button onClick={handleDownloadApp} className="primary-btn" style={{ backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginTop: 0 }}>
-            <Download size={20} />
-            Download App (APK / iOS)
-          </button>
+
 
           <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid var(--error-color)', color: 'var(--error-color)', padding: '10px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '1rem', fontWeight: '500', alignSelf: 'flex-start', marginTop: '1rem' }}>
             <LogOut size={18} />

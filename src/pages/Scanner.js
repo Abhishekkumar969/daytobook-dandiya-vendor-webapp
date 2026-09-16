@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { db } from '../firebase';
-import { CheckCircle, XCircle, AlertTriangle, RefreshCcw, Flashlight, FlashlightOff, Search, Download } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, RefreshCcw, Flashlight, FlashlightOff, Search } from 'lucide-react';
 import firebase from 'firebase/compat/app';
 
 function Scanner({ user, vendorData }) {
@@ -312,26 +312,7 @@ function Scanner({ user, vendorData }) {
     }
   };
 
-  const handleDownloadApp = () => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
-      alert("To install on iOS: Tap the 'Share' icon at the bottom of your Safari browser, then select 'Add to Home Screen'.");
-      return;
-    }
-    if (window.deferredPrompt) {
-      window.deferredPrompt.prompt();
-      window.deferredPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        }
-        window.deferredPrompt = null;
-      });
-    } else {
-      alert("App is already installed, or installation is not supported on this browser.");
-    }
-  };
 
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
   return (
     <div className="scanner-container">
@@ -372,15 +353,7 @@ function Scanner({ user, vendorData }) {
             </div>
           )}
         </div>
-        {!isStandalone && (
-          <button 
-            onClick={handleDownloadApp}
-            style={{ background: 'var(--bg-surface-light)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', flexShrink: 0 }}
-            title="Download App"
-          >
-            <Download size={20} />
-          </button>
-        )}
+
       </div>
 
       <div className="scanner-box">

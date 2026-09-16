@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { auth, db } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { ScanLine, ListChecks, User, KeyRound, Download, X } from 'lucide-react';
+import { ScanLine, ListChecks, User, KeyRound } from 'lucide-react';
 
 import Login from './pages/Login';
 import Scanner from './pages/Scanner';
@@ -47,66 +47,7 @@ function Nav({ vendorData }) {
   );
 }
 
-function InstallPrompt({ onClose }) {
-  const handleDownloadApp = () => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
-      alert("To install on iOS: Tap the 'Share' icon at the bottom of your Safari browser, then select 'Add to Home Screen'.");
-      onClose();
-      return;
-    }
 
-    if (window.deferredPrompt) {
-      window.deferredPrompt.prompt();
-      window.deferredPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        } else {
-          console.log('User dismissed the install prompt');
-        }
-        window.deferredPrompt = null;
-        onClose();
-      });
-    } else {
-      alert("App is already installed, or installation is not supported on this browser.");
-      onClose();
-    }
-  };
-
-  return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-      backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
-      backdropFilter: 'blur(3px)'
-    }}>
-      <div style={{
-        background: 'var(--bg-color)', padding: '2rem', borderRadius: '12px',
-        width: '100%', maxWidth: '350px', textAlign: 'center', position: 'relative',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
-      }}>
-        <button onClick={onClose} style={{
-          position: 'absolute', top: '10px', right: '10px', background: 'transparent',
-          border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '5px'
-        }}>
-          <X size={20} />
-        </button>
-        <h3 style={{ marginTop: 0, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Install App</h3>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem', lineHeight: '1.4' }}>
-          Install the DayToBook Vendor App on your device for a faster and better experience!
-        </p>
-        <button onClick={handleDownloadApp} className="primary-btn" style={{
-          backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', gap: '0.5rem', width: '100%', padding: '0.8rem',
-          border: 'none', borderRadius: '8px', color: '#fff', fontSize: '1rem', cursor: 'pointer'
-        }}>
-          <Download size={18} />
-          Download App (APK / iOS)
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function ScannerRoute({ user, vendorData }) {
   const location = useLocation();
@@ -126,23 +67,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [vendorData, setVendorData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
-  useEffect(() => {
-    if (user && vendorData) {
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-      const hasDismissed = sessionStorage.getItem('installPromptDismissed');
-      
-      if (!isStandalone && !hasDismissed) {
-        setShowInstallPrompt(true);
-      }
-    }
-  }, [user, vendorData]);
-
-  const handleCloseInstallPrompt = () => {
-    setShowInstallPrompt(false);
-    sessionStorage.setItem('installPromptDismissed', 'true');
-  };
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('app-theme') || 'dark';
@@ -282,7 +207,6 @@ function App() {
           </Routes>
         </div>
         {showNav && <Nav vendorData={vendorData} />}
-        {showInstallPrompt && <InstallPrompt onClose={handleCloseInstallPrompt} />}
       </div>
     </Router>
   );

@@ -35,18 +35,18 @@ function Login() {
         }
       }
 
-      // 2. Check if the parent organizer is approved
-      let isApproved = false;
-      vendorSnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.status === 'approved' || data.isVerified === true) {
-          isApproved = true;
-        }
-      });
-
-      if (!isApproved) {
-        throw new Error("The associated organizer account is not approved yet.");
-      }
+      // 2. Check if the parent organizer is approved (Skipped as per user request to allow pending logins)
+      // let isApproved = false;
+      // vendorSnapshot.forEach((doc) => {
+      //   const data = doc.data();
+      //   if (data.status === 'approved' || data.isVerified === true) {
+      //     isApproved = true;
+      //   }
+      // });
+      // 
+      // if (!isApproved) {
+      //   throw new Error("The associated organizer account is not approved yet.");
+      // }
 
       // 3. Sign in with Firebase Auth
       await signInWithEmailAndPassword(auth, emailLower, password);

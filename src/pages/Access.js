@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, firebase, firebaseConfig } from '../firebase';
-import { Trash2, UserPlus, ShieldAlert, KeyRound, Mail, Lock, Eye, EyeOff, Download } from 'lucide-react';
+import { Trash2, UserPlus, ShieldAlert, KeyRound, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import './Access.css';
 
 function Access({ user, vendorData }) {
@@ -215,26 +215,7 @@ function Access({ user, vendorData }) {
     access: 'Access Management'
   };
 
-  const handleDownloadApp = () => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
-      alert("To install on iOS: Tap the 'Share' icon at the bottom of your Safari browser, then select 'Add to Home Screen'.");
-      return;
-    }
-    if (window.deferredPrompt) {
-      window.deferredPrompt.prompt();
-      window.deferredPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        }
-        window.deferredPrompt = null;
-      });
-    } else {
-      alert("App is already installed, or installation is not supported on this browser.");
-    }
-  };
 
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
   return (
     <div className="access-container">
@@ -244,15 +225,7 @@ function Access({ user, vendorData }) {
             <h2 style={{ margin: 0 }}><ShieldAlert size={24} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} /> Access Management</h2>
             <p style={{ margin: '0.2rem 0 0 0' }}>Manage sub-users and their permissions</p>
           </div>
-          {!isStandalone && (
-            <button 
-              onClick={handleDownloadApp}
-              style={{ background: 'var(--primary-color)', border: 'none', color: '#fff', padding: '8px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
-              title="Download App"
-            >
-              <Download size={20} />
-            </button>
-          )}
+
         </div>
       </div>
 
