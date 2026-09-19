@@ -106,7 +106,8 @@ function Profile({ user, vendorData }) {
     accountType: '',
     bankName: '',
     accountNumber: '',
-    bankIfsc: ''
+    bankIfsc: '',
+    opened: 0
   });
 
   const [passes, setPasses] = useState([]);
@@ -140,8 +141,8 @@ function Profile({ user, vendorData }) {
 
   useEffect(() => {
     const cleanEmail = (vendorData?.email || user.email).trim();
-    let unsubscribeProfile = () => {};
-    let unsubscribeTickets = () => {};
+    let unsubscribeProfile = () => { };
+    let unsubscribeTickets = () => { };
 
     try {
       unsubscribeProfile = db.collection("EventTicketRegistration")
@@ -183,7 +184,8 @@ function Profile({ user, vendorData }) {
               accountType: data.accountType || '',
               bankName: data.bankName || '',
               accountNumber: data.accountNumber || '',
-              bankIfsc: data.bankIfsc || ''
+              bankIfsc: data.bankIfsc || '',
+              opened: data.opened || 0
             };
             setProfileData(fetchedProfileData);
             setInitialProfileData(fetchedProfileData);
@@ -565,12 +567,12 @@ function Profile({ user, vendorData }) {
     let color = 'var(--error-color)';
     if (percent === 100) color = 'var(--success-color)';
     else if (percent > 0) color = 'var(--warning-color)';
-    
+
     return (
-      <span style={{ 
-        marginLeft: '10px', 
-        fontSize: '0.8rem', 
-        color: color, 
+      <span style={{
+        marginLeft: '10px',
+        fontSize: '0.8rem',
+        color: color,
         fontWeight: 'bold',
         background: 'transparent',
         padding: '2px 6px',
@@ -614,11 +616,16 @@ function Profile({ user, vendorData }) {
         {message && <div className="success-toast">{message}</div>}
         {error && <div className="error-toast">{error}</div>}
 
+
+
         {/* Event Link & QR Code */}
         <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+
+
+
           <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>Your Booking Link</h3>
           <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Add this booking link and QR code to your Instagram reels, posts, or promotional materials so customers can easily book tickets.</p>
-          
+
           {(() => {
             const formatStr = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
             const categoryInCity = `${formatStr(profileData.category || 'events')}-in-${formatStr(profileData.city || 'india')}`;
@@ -628,36 +635,36 @@ function Profile({ user, vendorData }) {
             const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(eventUrl)}`;
 
             const downloadQR = async () => {
-                try {
-                    const response = await fetch(qrUrl);
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `${nameSlug}-QR.png`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                } catch (err) {
-                    console.error('Error downloading QR code:', err);
-                    window.open(qrUrl, '_blank');
-                }
+              try {
+                const response = await fetch(qrUrl);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `${nameSlug}-QR.png`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+              } catch (err) {
+                console.error('Error downloading QR code:', err);
+                window.open(qrUrl, '_blank');
+              }
             };
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%' }}>
                 <img src={qrUrl} alt="Event QR Code" style={{ width: '150px', height: '150px', borderRadius: '8px', border: '2px solid var(--border-color)', padding: '5px', backgroundColor: 'white' }} />
-                
+
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={downloadQR} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface-light)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500' }}>
                     <Download size={18} /> Download QR
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
-                        navigator.clipboard.writeText(eventUrl);
-                        setCopiedLink(true);
-                        setTimeout(() => setCopiedLink(false), 2000);
+                      navigator.clipboard.writeText(eventUrl);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
                     }}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', border: 'none', background: copiedLink ? 'var(--success-color)' : 'var(--primary-color)', color: 'white', cursor: 'pointer', fontWeight: '500' }}
                   >
@@ -666,11 +673,20 @@ function Profile({ user, vendorData }) {
                 </div>
 
                 <div style={{ width: '100%', padding: '12px 15px', backgroundColor: 'var(--bg-surface-light)', borderRadius: '8px', border: '1px solid var(--border-color)', wordBreak: 'break-all', fontSize: '0.9rem', color: 'var(--text-primary)', textAlign: 'center' }}>
-                    <a href={eventUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>{eventUrl}</a>
+                  <a href={eventUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>{eventUrl}</a>
                 </div>
               </div>
             );
           })()}
+        </div>
+
+        <div style={{ background: 'var(--primary-color)', color: 'white', padding: '6px 14px', borderRadius: '20px', fontSize: '0.95rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: "5px", marginBottom: "20px", width: 'fit-content' }}>
+          <div style={{ display: 'block', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}> {profileData.opened || 0} Views </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 'normal', opacity: 0.9 }}>(Only visible on your dashboard)</span>
+            </div>
+          </div>
         </div>
 
         {/* Section 1: Basic Info */}
