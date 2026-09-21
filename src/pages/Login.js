@@ -1,23 +1,17 @@
 import React, { useState } from 'react';
-import { auth, db } from '../firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { Eye, EyeOff } from 'lucide-react';
-
+import { auth, db, googleProvider } from '../firebase';
 
 function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleGoogleLogin = async () => {
     setError('');
     setLoading(true);
 
     try {
-      const emailLower = email.toLowerCase().trim();
+      const result = await auth.signInWithPopup(googleProvider);
+      const emailLower = result.user.email.toLowerCase().trim();
 
       // 1. Check if vendor exists directly
       let vendorSnapshot = await db.collection("EventTicketRegistration")
@@ -35,26 +29,10 @@ function Login() {
         }
       }
 
-      // 2. Check if the parent organizer is approved (Skipped as per user request to allow pending logins)
-      // let isApproved = false;
-      // vendorSnapshot.forEach((doc) => {
-      //   const data = doc.data();
-      //   if (data.status === 'approved' || data.isVerified === true) {
-      //     isApproved = true;
-      //   }
-      // });
-      // 
-      // if (!isApproved) {
-      //   throw new Error("The associated organizer account is not approved yet.");
-      // }
-
-      // 3. Sign in with Firebase Auth
-      await signInWithEmailAndPassword(auth, emailLower, password);
-
     } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to login. Please check your credentials.");
-      auth.signOut(); // Ensure they are signed out if not approved
+      setError(err.message || "Failed to login with Google.");
+      auth.signOut(); // Ensure they are signed out if not approved or not found
     } finally {
       setLoading(false);
     }
@@ -62,58 +40,34 @@ function Login() {
 
   return (
     <div className="login-container">
-      <div className="login-box">
-        <h2 style={{ marginTop: 0, textAlign: 'center', marginBottom: '1.5rem' }}>Event Ticketing by DayToBook</h2>
-        <form onSubmit={handleLogin}>
-          <div className="form-group">
-            <label>Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your registered email"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                required
-                style={{ paddingRight: '40px', width: '100%', boxSizing: 'border-box' }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#666',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 0
-                }}
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-          </div>
-          <button type="submit" className="primary-btn" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login to Dashboard'}
-          </button>
+      <div className="login-box" style={{ textAlign: 'center' }}>
+        <h2 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Event Ticketing by DayToBook</h2>
+        
+        <p style={{ marginBottom: '20px', color: '#555', fontSize: '15px' }}>
+          Please login with your event ticket pass registered email ID.
+        </p>
 
-          {error && <div className="error-message">{error}</div>}
-        </form>
+        <button 
+          onClick={handleGoogleLogin} 
+          className="primary-btn" 
+          disabled={loading}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+        >
+          {loading ? 'Logging in...' : (
+            <>
+              <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                <path fill="none" d="M0 0h48v48H0z"/>
+              </svg>
+              Sign in with Google
+            </>
+          )}
+        </button>
+
+        {error && <div className="error-message" style={{ marginTop: '15px' }}>{error}</div>}
       </div>
     </div>
   );

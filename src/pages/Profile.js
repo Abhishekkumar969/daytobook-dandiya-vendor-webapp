@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { LogOut, Check, User as UserIcon, MapPin, Landmark, Calendar, Ticket, Plus, Trash2, ChevronDown, ChevronUp, Image as ImageIcon, UploadCloud, Download, Palette, Users, Handshake } from 'lucide-react';
+import { LogOut, Check, Copy, User as UserIcon, Calendar, Ticket, Plus, Trash2, ChevronDown, ChevronUp, Image as ImageIcon, UploadCloud, Download, Users, Handshake } from 'lucide-react';
 
 // Utility: Compress & Convert to WebP
 const compressAndConvertToWebP = (file) => {
@@ -84,7 +84,6 @@ const uploadToCloudinary = async (file, folderPath) => {
 };
 
 function Profile({ user, vendorData }) {
-  const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'dark');
   const [profileData, setProfileData] = useState({
     ownerName: '',
     organizer: '',
@@ -128,6 +127,7 @@ function Profile({ user, vendorData }) {
   const [isUploadingMain, setIsUploadingMain] = useState(false);
 
   const mainInputRef = useRef(null);
+  const autoOpenRef = useRef(false);
 
   const [docId, setDocId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -254,6 +254,24 @@ function Profile({ user, vendorData }) {
     };
   }, [user, vendorData]);
 
+  useEffect(() => {
+    if (loading || autoOpenRef.current) return;
+
+    let limitReached = false;
+    for (const pass of passes) {
+      const soldCount = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
+      if (pass.limit && Number(pass.limit) <= soldCount && soldCount > 0) {
+        limitReached = true;
+        break;
+      }
+    }
+
+    if (limitReached) {
+      setExpandedSection('Event Passes');
+    }
+    autoOpenRef.current = true;
+  }, [passes, soldPassCounts, loading]);
+
   const isSectionDirty = (sectionName) => {
     if (!initialProfileData) return false;
 
@@ -334,9 +352,18 @@ function Profile({ user, vendorData }) {
   };
 
   const handlePassChange = (index, field, value) => {
+    if ((field === 'price' || field === 'limit') && value !== '') {
+      value = value.toString().replace(/[^0-9]/g, '');
+    }
     const newPasses = [...passes];
     newPasses[index] = { ...newPasses[index], [field]: value };
     setPasses(newPasses);
+  };
+
+  const handleKeyDownInt = (e) => {
+    if (e.key === '.' || e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+      e.preventDefault();
+    }
   };
 
   const handleArtistChange = (index, field, value) => {
@@ -487,7 +514,7 @@ function Profile({ user, vendorData }) {
       };
 
       await db.collection("EventTicketRegistration").doc(docId).set(dataToSave, { merge: true });
-      setMessage(`${sectionName} saved successfully!`);
+      setMessage('Saved');
 
       // Update initial state to reflect saved data
       setInitialProfileData({ ...profileData });
@@ -496,7 +523,7 @@ function Profile({ user, vendorData }) {
       setInitialPartners([...partners]);
       setInitialMainImage(mainImage);
 
-      setTimeout(() => setMessage(''), 3000);
+      setTimeout(() => setMessage(''), 1000);
       setExpandedSection(null);
     } catch (err) {
       console.error("Error updating profile: ", err);
@@ -510,26 +537,30 @@ function Profile({ user, vendorData }) {
     signOut(auth);
   };
 
-  const handleThemeChange = (e) => {
-    const newTheme = e.target.value;
-    setTheme(newTheme);
-    localStorage.setItem('app-theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-  };
-
 
 
   const getSectionCompletion = (section) => {
     let filled = 0;
     let total = 1;
+    const isApproved = profileData.status === 'approved';
     switch (section) {
       case 'Contact Info':
-        total = 5;
-        filled = [profileData.ownerName, profileData.organizer, profileData.phone, profileData.phone2, profileData.phone3].filter(v => v && v.toString().trim() !== '').length;
+        if (isApproved) {
+          total = 3;
+          filled = [profileData.phone, profileData.phone2, profileData.phone3].filter(v => v && v.toString().trim() !== '').length;
+        } else {
+          total = 5;
+          filled = [profileData.ownerName, profileData.organizer, profileData.phone, profileData.phone2, profileData.phone3].filter(v => v && v.toString().trim() !== '').length;
+        }
         break;
       case 'Event Details':
-        total = 6;
-        filled = [profileData.name, profileData.category, profileData.date, profileData.time, profileData.about, mainImage].filter(v => v && v.toString().trim() !== '').length;
+        if (isApproved) {
+          total = 3;
+          filled = [profileData.time, profileData.about, mainImage].filter(v => v && v.toString().trim() !== '').length;
+        } else {
+          total = 6;
+          filled = [profileData.name, profileData.category, profileData.date, profileData.time, profileData.about, mainImage].filter(v => v && v.toString().trim() !== '').length;
+        }
         break;
       case 'Event Artists':
         total = 1;
@@ -539,22 +570,11 @@ function Profile({ user, vendorData }) {
         total = 1;
         filled = partners.length > 0 ? 1 : 0;
         break;
-      case 'Venue Details':
-        total = 5;
-        filled = [profileData.venueName, profileData.location, profileData.city, profileData.state, profileData.mapUrl].filter(v => v && v.toString().trim() !== '').length;
-        break;
       case 'Event Passes':
         total = 1;
         filled = passes.length > 0 ? 1 : 0;
         break;
-      case 'Bank Details':
-        total = 5;
-        filled = [profileData.beneficiaryName, profileData.accountType, profileData.bankName, profileData.accountNumber, profileData.bankIfsc].filter(v => v && v.toString().trim() !== '').length;
-        break;
-      case 'App Theme':
-        total = 1;
-        filled = 1;
-        break;
+
       default:
         total = 1;
         filled = 1;
@@ -564,9 +584,10 @@ function Profile({ user, vendorData }) {
 
   const renderPercentage = (section) => {
     const percent = getSectionCompletion(section);
+    if (percent === 100) return null;
+
     let color = 'var(--error-color)';
-    if (percent === 100) color = 'var(--success-color)';
-    else if (percent > 0) color = 'var(--warning-color)';
+    if (percent > 0) color = 'var(--warning-color)';
 
     return (
       <span style={{
@@ -588,21 +609,23 @@ function Profile({ user, vendorData }) {
     return <div className="loading-screen">Loading Profile...</div>;
   }
 
+  const isAnyPassLimitReached = passes.some(pass => {
+    const soldCount = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
+    return pass.limit && Number(pass.limit) <= soldCount && soldCount > 0;
+  });
+
+  const isAnyPassInvalid = passes.some(pass => {
+    const nameStr = (pass.name || '').toString().trim();
+    const priceStr = (pass.price || '').toString().trim();
+    return nameStr === '' || priceStr === '';
+  });
+
   return (
     <div className="records-container" style={{ paddingBottom: '2rem' }}>
       <div className="records-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100, backgroundColor: 'var(--bg-color)', padding: '1rem' }}>
         <div>
           <h2>Profile</h2>
         </div>
-        <button
-          className="save-tick-btn"
-          onClick={(e) => handleSave(e, 'All changes')}
-          disabled={savingSection !== null || isUploadingMain || !isAnySectionDirty()}
-          style={{ width: '40px', height: '40px' }}
-          title="Save all changes"
-        >
-          <Check size={24} />
-        </button>
       </div>
 
       <div className="login-box" style={{ maxWidth: '100%', padding: '1rem 10px' }}>
@@ -613,181 +636,152 @@ function Profile({ user, vendorData }) {
           </div>
         )}
 
-        {message && <div className="success-toast">{message}</div>}
+        {message && <div className="floating-success-toast">{message}</div>}
         {error && <div className="error-toast">{error}</div>}
 
 
 
         {/* Event Link & QR Code */}
-        <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+        {profileData.status === 'approved' && (
+          <div style={{ marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
+            {(() => {
+              const formatStr = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+              const categoryInCity = `${formatStr(profileData.category || 'events')}-in-${formatStr(profileData.city || 'india')}`;
+              const venueInCity = `${formatStr(profileData.venueName || 'venue')}-${formatStr(profileData.city || 'india')}`;
+              const nameSlug = formatStr(profileData.name || 'hardcoded-event');
+              const eventUrl = `https://daytobook.com/event-tickets/${categoryInCity}/${venueInCity}/${nameSlug}`;
+              const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(eventUrl)}`;
 
+              const downloadQR = async () => {
+                try {
+                  const response = await fetch(qrUrl);
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.style.display = 'none';
+                  a.href = url;
+                  a.download = `${nameSlug}-QR.png`;
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                } catch (err) {
+                  console.error('Error downloading QR code:', err);
+                  window.open(qrUrl, '_blank');
+                }
+              };
 
-
-          <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>Your Booking Link</h3>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Add this booking link and QR code to your Instagram reels, posts, or promotional materials so customers can easily book tickets.</p>
-
-          {(() => {
-            const formatStr = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-            const categoryInCity = `${formatStr(profileData.category || 'events')}-in-${formatStr(profileData.city || 'india')}`;
-            const venueInCity = `${formatStr(profileData.venueName || 'venue')}-${formatStr(profileData.city || 'india')}`;
-            const nameSlug = formatStr(profileData.name || 'hardcoded-event');
-            const eventUrl = `https://daytobook.com/event-tickets/${categoryInCity}/${venueInCity}/${nameSlug}`;
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(eventUrl)}`;
-
-            const downloadQR = async () => {
-              try {
-                const response = await fetch(qrUrl);
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `${nameSlug}-QR.png`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-              } catch (err) {
-                console.error('Error downloading QR code:', err);
-                window.open(qrUrl, '_blank');
-              }
-            };
-
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%' }}>
-                <img src={qrUrl} alt="Event QR Code" style={{ width: '150px', height: '150px', borderRadius: '8px', border: '2px solid var(--border-color)', padding: '5px', backgroundColor: 'white' }} />
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={downloadQR} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface-light)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500' }}>
-                    <Download size={18} /> Download QR
-                  </button>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(eventUrl);
-                      setCopiedLink(true);
-                      setTimeout(() => setCopiedLink(false), 2000);
-                    }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', border: 'none', background: copiedLink ? 'var(--success-color)' : 'var(--primary-color)', color: 'white', cursor: 'pointer', fontWeight: '500' }}
-                  >
-                    {copiedLink ? <Check size={18} /> : null} {copiedLink ? 'Copied!' : 'Copy Link'}
-                  </button>
-                </div>
-
-                <div style={{ width: '100%', padding: '12px 15px', backgroundColor: 'var(--bg-surface-light)', borderRadius: '8px', border: '1px solid var(--border-color)', wordBreak: 'break-all', fontSize: '0.9rem', color: 'var(--text-primary)', textAlign: 'center' }}>
-                  <a href={eventUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>{eventUrl}</a>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-
-        <div style={{ background: 'var(--primary-color)', color: 'white', padding: '6px 14px', borderRadius: '20px', fontSize: '0.95rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', marginLeft: 'auto', marginRight: 'auto', marginTop: "5px", marginBottom: "20px", width: 'fit-content' }}>
-          <div style={{ display: 'block', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}> {profileData.opened || 0} Views </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 'normal', opacity: 0.9 }}>(Only visible on your dashboard)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 1: Basic Info */}
-        <div className={`accordion-item ${expandedSection === 'Contact Info' ? 'expanded' : ''}`}>
-          <div className="accordion-header" onClick={() => toggleSection('Contact Info')}>
-            <div className="accordion-title">
-              <UserIcon size={18} />Contact Info {renderPercentage('Contact Info')}
-            </div>
-            <div className="accordion-actions">
-              {expandedSection === 'Contact Info' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </div>
-          </div>
-          <div className="accordion-body">
-            <div className="form-group">
-              <label>Email Address (Login ID)</label>
-              <input type="email" value={user.email} disabled style={{ opacity: 0.6, cursor: 'not-allowed' }} />
-            </div>
-            <div className="form-row">
-              <div className="form-group half">
-                <label>Owner Name</label>
-                <input type="text" name="ownerName" value={profileData.ownerName} onChange={handleChange} required />
-              </div>
-              <div className="form-group half">
-                <label>Organizer / Company Name</label>
-                <input type="text" name="organizer" value={profileData.organizer} onChange={handleChange} required />
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Primary Phone</label>
-              <input type="tel" name="phone" value={profileData.phone} onChange={handleChange} required />
-            </div>
-            <div className="form-row">
-              <div className="form-group half">
-                <label>Alternate Phone 2</label>
-                <input type="tel" name="phone2" value={profileData.phone2} onChange={handleChange} />
-              </div>
-              <div className="form-group half">
-                <label>Alternate Phone 3</label>
-                <input type="tel" name="phone3" value={profileData.phone3} onChange={handleChange} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 2: Event Details & Media */}
-        <div className={`accordion-item ${expandedSection === 'Event Details' ? 'expanded' : ''}`}>
-          <div className="accordion-header" onClick={() => toggleSection('Event Details')}>
-            <div className="accordion-title">
-              <Calendar size={18} /> Event Details & Media {renderPercentage('Event Details')}
-            </div>
-            <div className="accordion-actions">
-              {expandedSection === 'Event Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </div>
-          </div>
-          <div className="accordion-body">
-            <div className="form-row">
-              <div className="form-group half">
-                <label>Event Name</label>
-                <input type="text" name="name" value={profileData.name} onChange={handleChange} required />
-              </div>
-              <div className="form-group half">
-                <label>Category</label>
-                <input type="text" name="category" value={profileData.category} onChange={handleChange} />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group half">
-                <label>Event Date</label>
-                <input type="date" name="date" value={profileData.date} onChange={handleChange} required />
-              </div>
-              <div className="form-group half">
-                <label>Event Time</label>
-                <input type="time" name="time" value={profileData.time} onChange={handleChange} required />
-              </div>
-            </div>
-            <div className="form-group">
-              <label>About the Event</label>
-              <textarea name="about" value={profileData.about} onChange={handleChange} rows={4} className="custom-textarea" />
-            </div>
-
-            <hr className="divider" style={{ margin: '1rem 0' }} />
-
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <ImageIcon size={18} /> Main Banner Photo
-              </label>
-              <div className="media-upload-area" onClick={() => mainInputRef.current?.click()}>
-                {isUploadingMain ? (
-                  <p>Uploading and Compressing...</p>
-                ) : mainImage ? (
-                  <img src={mainImage} alt="Banner Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
-                ) : (
-                  <div style={{ padding: '2rem', textAlign: 'center', border: '2px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                    <UploadCloud size={32} style={{ margin: '0 auto 0.5rem auto', display: 'block' }} />
-                    <p>Click to upload banner</p>
+              return (
+                <>
+                  {/* Logo Container (Left) */}
+                  <div style={{ flex: '1 1 300px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>Logo for Banner</h3>
+                    <div style={{ width: '150px', height: '150px', borderRadius: '8px', border: '2px solid var(--border-color)', padding: '5px', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <img src="/DayToBook_Logo.png" alt="DayToBook Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                    </div>
+                    <a href="/DayToBook_Logo.png" download="DayToBook_Logo.png" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface-light)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500', textDecoration: 'none' }} title="Download Logo">
+                      <Download size={18} /> Download
+                    </a>
                   </div>
-                )}
-              </div>
-              <input type="file" accept="image/*" ref={mainInputRef} style={{ display: 'none' }} onChange={handleMainImageChange} />
-            </div>
 
+                  {/* QR Code Container (Right) */}
+                  <div style={{ flex: '1 1 300px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>My Passes</h3>
+                    <img src={qrUrl} alt="Event QR Code" style={{ width: '150px', height: '150px', borderRadius: '8px', border: '2px solid var(--border-color)', padding: '5px', backgroundColor: 'white' }} />
+                    <button onClick={downloadQR} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface-light)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500' }} title="Download QR">
+                      <Download size={18} /> Download
+                    </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px' }}>
+                      <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '500' }}>Link for Insta Bio</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(eventUrl);
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '6px', border: 'none', background: copiedLink ? 'var(--success-color)' : 'var(--primary-color)', color: 'white', cursor: 'pointer', width: '36px', height: '36px' }}
+                        title="Copy Link"
+                      >
+                        {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                </>);
+            })()}
+          </div>
+        )}
+
+
+        {/* Section 4: Event Passes */}
+        <div className={`accordion-item ${expandedSection === 'Event Passes' ? 'expanded' : ''}`}>
+          <div className="accordion-header" onClick={() => toggleSection('Event Passes')} style={(isAnyPassLimitReached && expandedSection !== 'Event Passes') ? { border: '2px solid var(--error-color)', borderRadius: '8px' } : {}}>
+            <div className="accordion-title">
+              <Ticket size={18} /> Event Passes {renderPercentage('Event Passes')}
+            </div>
+            <div className="accordion-actions">
+              {expandedSection === 'Event Passes' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </div>
+          </div>
+          <div className="accordion-body">
+            {/* Limit Alerts Removed as requested */}
+
+            <div className="passes-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {passes.map((pass, index) => {
+                const isPurchased = purchasedPassIds.has(pass.passId) || purchasedPassIds.has(pass.name);
+                const soldCount = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
+                const isLimitReached = pass.limit && Number(pass.limit) <= soldCount && soldCount > 0;
+                return (
+                  <div key={pass.passId || index} style={{ padding: '1rem', border: isLimitReached ? '2px solid var(--error-color)' : '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-color)', position: 'relative' }}>
+                    {!isPurchased && (
+                      <button type="button" onClick={() => removePass(index)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--error-color)', cursor: 'pointer' }}>
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                    <div className="form-group" style={{ paddingRight: '2rem' }}>
+                      <label>Pass Name {isPurchased && <span style={{ color: 'var(--error-color)', fontSize: '0.8rem' }}>(Purchased - Cannot change name)</span>}</label>
+                      <input type="text" value={pass.name} onChange={(e) => handlePassChange(index, 'name', e.target.value)} disabled={isPurchased} required />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group half">
+                        <label>Price (₹)</label>
+                        <input type="number" min="0" step="1" value={pass.price} onKeyDown={handleKeyDownInt} onChange={(e) => handlePassChange(index, 'price', e.target.value)} required />
+                      </div>
+                      <div className="form-group half">
+                        <label>Limit / Max Capacity {soldCount > 0 && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>(Sold: {soldCount})</span>}</label>
+                        <input
+                          type="number"
+                          min={soldCount}
+                          value={pass.limit}
+                          onChange={(e) => handlePassChange(index, 'limit', e.target.value)}
+                          onKeyDown={handleKeyDownInt}
+                          onBlur={(e) => {
+                            if (pass.limit && Number(pass.limit) < soldCount) {
+                              handlePassChange(index, 'limit', soldCount);
+                              handlePassChange(index, 'limitError', 'Limit cannot be less than sold');
+                              setTimeout(() => handlePassChange(index, 'limitError', ''), 3000);
+                            }
+                          }}
+                          placeholder="Leave blank if unlimited"
+                          style={{
+                            borderColor: isLimitReached ? 'var(--error-color)' : undefined,
+                            color: isLimitReached ? 'var(--error-color)' : undefined
+                          }}
+                        />
+                        {isLimitReached && <div style={{ color: 'var(--error-color)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 'bold' }}>Please increase the limit</div>}
+                        {pass.limitError && !isLimitReached && <div style={{ color: 'var(--error-color)', fontSize: '0.8rem', marginTop: '4px' }}>{pass.limitError}</div>}
+                      </div>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Features separated with comma</label>
+                      <input type="text" value={pass.description} onChange={(e) => handlePassChange(index, 'description', e.target.value)} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button type="button" onClick={addPass} style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface-light)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.75rem 1rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
+              <Plus size={18} /> Add Another Pass
+            </button>
           </div>
         </div>
 
@@ -819,7 +813,9 @@ function Profile({ user, vendorData }) {
                         ) : (
                           <>
                             <UploadCloud size={24} style={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }} />
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Upload</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', lineHeight: '1.2' }}>
+                              Upload<br />(9:16)<br />Portrait
+                            </span>
                           </>
                         )}
                         <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleArtistImageUpload(e, index)} />
@@ -873,7 +869,9 @@ function Profile({ user, vendorData }) {
                         ) : (
                           <>
                             <UploadCloud size={24} style={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }} />
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Upload</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', lineHeight: '1.2' }}>
+                              Upload<br />(9:16)<br />Portrait
+                            </span>
                           </>
                         )}
                         <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handlePartnerImageUpload(e, index)} />
@@ -900,215 +898,107 @@ function Profile({ user, vendorData }) {
         </div>
 
 
-        {/* Section 3: Venue Details */}
-        <div className={`accordion-item ${expandedSection === 'Venue Details' ? 'expanded' : ''}`}>
-          <div className="accordion-header" onClick={() => toggleSection('Venue Details')}>
+        {/* Section 2: Event Details & Media */}
+        <div className={`accordion-item ${expandedSection === 'Event Details' ? 'expanded' : ''}`}>
+          <div className="accordion-header" onClick={() => toggleSection('Event Details')}>
             <div className="accordion-title">
-              <MapPin size={18} /> Venue Details {renderPercentage('Venue Details')}
+              <Calendar size={18} /> Event Details & Media {renderPercentage('Event Details')}
             </div>
             <div className="accordion-actions">
-              {expandedSection === 'Venue Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              {expandedSection === 'Event Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </div>
           </div>
           <div className="accordion-body">
-            <div className="form-group">
-              <label>Venue Name</label>
-              <input type="text" name="venueName" value={profileData.venueName} onChange={handleChange} required />
-            </div>
-            <div className="form-group">
-              <label>Full Address</label>
-              <input type="text" name="location" value={profileData.location} onChange={handleChange} required />
-            </div>
+            {profileData.status !== 'approved' && (
+              <div className="form-row">
+                <div className="form-group half">
+                  <label>Event Name</label>
+                  <input type="text" name="name" value={profileData.name} onChange={handleChange} required />
+                </div>
+                <div className="form-group half">
+                  <label>Category</label>
+                  <input type="text" name="category" value={profileData.category} onChange={handleChange} />
+                </div>
+              </div>
+            )}
             <div className="form-row">
+              {profileData.status !== 'approved' && (
+                <div className="form-group half">
+                  <label>Event Date</label>
+                  <input type="date" name="date" value={profileData.date} onChange={handleChange} required />
+                </div>
+              )}
               <div className="form-group half">
-                <label>City</label>
-                <input type="text" name="city" value={profileData.city} onChange={handleChange} required />
-              </div>
-              <div className="form-group half">
-                <label>State</label>
-                <input type="text" name="state" value={profileData.state} onChange={handleChange} required />
+                <label>Event Time</label>
+                <input type="time" name="time" value={profileData.time} onChange={handleChange} required />
               </div>
             </div>
             <div className="form-group">
-              <label>Google Maps URL</label>
-              <input type="url" name="mapUrl" value={profileData.mapUrl} onChange={handleChange} />
+              <label>About the Event</label>
+              <textarea name="about" value={profileData.about} onChange={handleChange} rows={4} className="custom-textarea" />
             </div>
-          </div>
-        </div>
 
-        {/* Section 4: Event Passes */}
-        <div className={`accordion-item ${expandedSection === 'Event Passes' ? 'expanded' : ''}`}>
-          <div className="accordion-header" onClick={() => toggleSection('Event Passes')}>
-            <div className="accordion-title">
-              <Ticket size={18} /> Event Passes {renderPercentage('Event Passes')}
-            </div>
-            <div className="accordion-actions">
-              {expandedSection === 'Event Passes' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </div>
-          </div>
-          <div className="accordion-body">
-            {/* Limit Alerts Removed as requested */}
+            <hr className="divider" style={{ margin: '1rem 0' }} />
 
-            <div className="passes-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {passes.map((pass, index) => {
-                const isPurchased = purchasedPassIds.has(pass.passId) || purchasedPassIds.has(pass.name);
-                const soldCount = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
-                return (
-                  <div key={pass.passId || index} style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-color)', position: 'relative' }}>
-                    {!isPurchased && (
-                      <button type="button" onClick={() => removePass(index)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--error-color)', cursor: 'pointer' }}>
-                        <Trash2 size={18} />
-                      </button>
-                    )}
-                    <div className="form-group" style={{ paddingRight: '2rem' }}>
-                      <label>Pass Name {isPurchased && <span style={{ color: 'var(--error-color)', fontSize: '0.8rem' }}>(Purchased - Cannot change name)</span>}</label>
-                      <input type="text" value={pass.name} onChange={(e) => handlePassChange(index, 'name', e.target.value)} disabled={isPurchased} required />
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group half">
-                        <label>Price (₹)</label>
-                        <input type="number" min="0" value={pass.price} onChange={(e) => handlePassChange(index, 'price', e.target.value)} required />
-                      </div>
-                      <div className="form-group half">
-                        <label>Limit / Max Capacity {soldCount > 0 && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>(Sold: {soldCount})</span>}</label>
-                        <input type="number" min={soldCount} value={pass.limit} onChange={(e) => handlePassChange(index, 'limit', e.target.value)} placeholder="Leave blank if unlimited" />
-                      </div>
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>Description / Perks</label>
-                      <input type="text" value={pass.description} onChange={(e) => handlePassChange(index, 'description', e.target.value)} />
-                    </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <ImageIcon size={18} /> Main Banner Photo
+              </label>
+              <div className="media-upload-area" onClick={() => mainInputRef.current?.click()}>
+                {isUploadingMain ? (
+                  <p>Uploading and Compressing...</p>
+                ) : mainImage ? (
+                  <img src={mainImage} alt="Banner Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
+                ) : (
+                  <div style={{ padding: '2rem', textAlign: 'center', border: '2px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                    <UploadCloud size={32} style={{ margin: '0 auto 0.5rem auto', display: 'block' }} />
+                    <p>Click to upload banner</p>
                   </div>
-                );
-              })}
+                )}
+              </div>
+              <input type="file" accept="image/*" ref={mainInputRef} style={{ display: 'none' }} onChange={handleMainImageChange} />
             </div>
-            <button type="button" onClick={addPass} style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface-light)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.75rem 1rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
-              <Plus size={18} /> Add Another Pass
-            </button>
+
           </div>
         </div>
 
-        {/* Section 5: Bank Details */}
-        <div className={`accordion-item ${expandedSection === 'Bank Details' ? 'expanded' : ''}`}>
-          <div className="accordion-header" onClick={() => toggleSection('Bank Details')}>
+        {/* Section 1: Basic Info */}
+        <div className={`accordion-item ${expandedSection === 'Contact Info' ? 'expanded' : ''}`}>
+          <div className="accordion-header" onClick={() => toggleSection('Contact Info')}>
             <div className="accordion-title">
-              <Landmark size={18} /> Bank Details {renderPercentage('Bank Details')}
+              <UserIcon size={18} />Contact Info {renderPercentage('Contact Info')}
             </div>
             <div className="accordion-actions">
-              {expandedSection === 'Bank Details' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              {expandedSection === 'Contact Info' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </div>
           </div>
           <div className="accordion-body">
-            <div className="form-row">
-              <div className="form-group half">
-                <label>Beneficiary Name</label>
-                <input type="text" name="beneficiaryName" value={profileData.beneficiaryName} onChange={handleChange} />
-              </div>
-              <div className="form-group half">
-                <label>Account Type</label>
-                <select name="accountType" value={profileData.accountType} onChange={handleChange} className="custom-select">
-                  <option value="">Select Type</option>
-                  <option value="Current account">Current account</option>
-                  <option value="Saving account">Saving account</option>
-                  <option value="Salary account">Salary account</option>
-                  <option value="NRI account">NRI account</option>
-                </select>
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Bank Name</label>
-              <input type="text" name="bankName" value={profileData.bankName} onChange={handleChange} />
-            </div>
-            <div className="form-row">
-              <div className="form-group half">
-                <label>Account Number</label>
-                <input type="text" name="accountNumber" value={profileData.accountNumber} onChange={handleChange} />
-              </div>
-              <div className="form-group half">
-                <label>IFSC Code</label>
-                <input type="text" name="bankIfsc" value={profileData.bankIfsc} onChange={handleChange} />
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Section 6: App Theme */}
-        <div className={`accordion-item ${expandedSection === 'App Theme' ? 'expanded' : ''}`}>
-          <div className="accordion-header" onClick={() => toggleSection('App Theme')}>
-            <div className="accordion-title">
-              <Palette size={18} /> App Theme
+            {profileData.status !== 'approved' && (
+              <div className="form-row">
+                <div className="form-group half">
+                  <label>Owner Name</label>
+                  <input type="text" name="ownerName" value={profileData.ownerName} onChange={handleChange} required />
+                </div>
+                <div className="form-group half">
+                  <label>Organizer / Company Name</label>
+                  <input type="text" name="organizer" value={profileData.organizer} onChange={handleChange} required />
+                </div>
+              </div>
+            )}
+            <div className="form-group">
+              <label>Primary Phone</label>
+              <input type="tel" name="phone" value={profileData.phone} onChange={handleChange} required />
             </div>
-            <div className="accordion-actions">
-              {expandedSection === 'App Theme' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </div>
-          </div>
-          <div className="accordion-body" style={{ padding: '0.5rem' }}>
-            <div
-              onClick={() => handleThemeChange({ target: { value: 'dark' } })}
-              style={{
-                padding: '12px 16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-                borderRadius: '8px',
-                background: theme === 'dark' ? 'var(--bg-color)' : 'transparent',
-                marginBottom: '4px',
-                border: theme === 'dark' ? '1px solid var(--primary-color)' : '1px solid transparent'
-              }}
-            >
-              <span style={{ fontWeight: theme === 'dark' ? '600' : '400', color: theme === 'dark' ? 'var(--primary-color)' : 'var(--text-primary)' }}>Dark Theme</span>
-              {theme === 'dark' && <Check size={18} color="var(--success-color)" />}
-            </div>
-            <div
-              onClick={() => handleThemeChange({ target: { value: 'blue' } })}
-              style={{
-                padding: '12px 16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-                borderRadius: '8px',
-                background: theme === 'blue' ? 'var(--bg-color)' : 'transparent',
-                marginBottom: '4px',
-                border: theme === 'blue' ? '1px solid var(--primary-color)' : '1px solid transparent'
-              }}
-            >
-              <span style={{ fontWeight: theme === 'blue' ? '600' : '400', color: theme === 'blue' ? 'var(--primary-color)' : 'var(--text-primary)' }}>Ocean Theme</span>
-              {theme === 'blue' && <Check size={18} color="var(--success-color)" />}
-            </div>
-            <div
-              onClick={() => handleThemeChange({ target: { value: 'mud' } })}
-              style={{
-                padding: '12px 16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-                borderRadius: '8px',
-                background: theme === 'mud' ? 'var(--bg-color)' : 'transparent',
-                marginBottom: '4px',
-                border: theme === 'mud' ? '1px solid var(--primary-color)' : '1px solid transparent'
-              }}
-            >
-              <span style={{ fontWeight: theme === 'mud' ? '600' : '400', color: theme === 'mud' ? 'var(--primary-color)' : 'var(--text-primary)' }}>Mud Theme</span>
-              {theme === 'mud' && <Check size={18} color="var(--success-color)" />}
-            </div>
-            <div
-              onClick={() => handleThemeChange({ target: { value: 'light' } })}
-              style={{
-                padding: '12px 16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-                borderRadius: '8px',
-                background: theme === 'light' ? 'var(--bg-color)' : 'transparent',
-                border: theme === 'light' ? '1px solid var(--primary-color)' : '1px solid transparent'
-              }}
-            >
-              <span style={{ fontWeight: theme === 'light' ? '600' : '400', color: theme === 'light' ? 'var(--primary-color)' : 'var(--text-primary)' }}>Light Theme</span>
-              {theme === 'light' && <Check size={18} color="var(--success-color)" />}
+            <div className="form-row">
+              <div className="form-group half">
+                <label>Alternate Phone 2</label>
+                <input type="tel" name="phone2" value={profileData.phone2} onChange={handleChange} />
+              </div>
+              <div className="form-group half">
+                <label>Alternate Phone 3</label>
+                <input type="tel" name="phone3" value={profileData.phone3} onChange={handleChange} />
+              </div>
             </div>
           </div>
         </div>
@@ -1123,6 +1013,35 @@ function Profile({ user, vendorData }) {
           </button>
         </div>
       </div>
+
+      {(isAnySectionDirty() && !isAnyPassInvalid) && (
+        <button
+          onClick={(e) => handleSave(e, 'All changes')}
+          disabled={savingSection !== null || isUploadingMain}
+          style={{
+            position: 'fixed',
+            bottom: '80px',
+            right: '2rem',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            padding: '16px 28px',
+            fontSize: '1.2rem',
+            fontWeight: 'bold',
+            color: '#fff',
+            backgroundColor: 'var(--success-color)',
+            border: 'none',
+            borderRadius: '15px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            cursor: 'pointer'
+          }}
+        >
+          <Check size={24} /> Save Now
+        </button>
+      )}
+
     </div>
   );
 }

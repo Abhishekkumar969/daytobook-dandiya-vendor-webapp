@@ -1,6 +1,6 @@
 .access-container {
-  padding: 10px;
-  max-width: 800px;
+  padding: 20px 15px;
+  max-width: 600px;
   margin: 0 auto;
   color: var(--text-primary);
 }
@@ -32,21 +32,23 @@
 
 .access-card {
   background: var(--bg-surface);
-  border-radius: 12px;
-  padding: 10px;
-  margin-bottom: 10px;
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 24px;
   border: 1px solid var(--border-color);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
 
 .access-card h3 {
   margin-top: 0;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 12px;
+  padding-bottom: 16px;
   display: flex;
   align-items: center;
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .input-with-icon {
@@ -62,12 +64,20 @@
 }
 
 .input-with-icon input {
-  padding-left: 40px !important;
+  padding-left: 44px !important;
   width: 100%;
   background-color: var(--bg-surface-light);
-  border: 1px solid var(--border-color);
+  border: 1.5px solid var(--border-color);
   color: var(--text-primary);
-  border-radius: 8px;
+  border-radius: 12px;
+  height: 48px;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.input-with-icon input:focus {
+  border-color: var(--primary-color);
+  outline: none;
 }
 
 .permissions-group {
@@ -127,7 +137,7 @@
 
 .staff-tags {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -142,13 +152,13 @@
 }
 
 .tag-toggle {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tag-toggle.active {
@@ -164,14 +174,14 @@
 }
 
 .tag-toggle:hover {
-  opacity: 0.8;
+  transform: translateY(-1px);
 }
 
 .delete-btn {
   color: var(--error-color);
-  background: var(--error-bg);
+  background: rgba(239, 68, 68, 0.1);
   border: none;
-  padding: 8px;
+  padding: 10px;
   border-radius: 50%;
   cursor: pointer;
   transition: all 0.2s ease;

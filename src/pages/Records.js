@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Clock } from 'lucide-react';
 import { subscribeToOrganizerNotifications } from '../services/notificationService';
 
 
 function Records({ user, vendorData }) {
   const [records, setRecords] = useState([]);
-  const [profilePasses, setProfilePasses] = useState([]);
-  const [profileDocId, setProfileDocId] = useState(null);
+  const [profileViews, setProfileViews] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expandedRecordId, setExpandedRecordId] = useState(null);
   const [toast, setToast] = useState(null); // { message: '', type: 'success' | 'error' }
-  const [isLimitsChanged, setIsLimitsChanged] = useState(false);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -27,11 +25,8 @@ function Records({ user, vendorData }) {
       .then(snap => {
         if (!snap.empty) {
           const doc = snap.docs[0];
-          setProfileDocId(doc.id);
           const data = doc.data();
-          if (data.passes && Array.isArray(data.passes)) {
-            setProfilePasses(data.passes);
-          }
+          setProfileViews(data.opened || 0);
         }
       })
       .catch(err => console.error("Error fetching vendor profile passes: ", err));
@@ -78,10 +73,7 @@ function Records({ user, vendorData }) {
     return acc + (Number(passTotal) || Number(r.totalAmount) || 0);
   }, 0);
 
-  // Deduct 5% commission and 18% GST on the commission
-  const commission = rawTotalRevenue * 0.05;
-  const gst = commission * 0.18;
-  const totalRevenue = (rawTotalRevenue - commission - gst).toFixed(2);
+  const totalRevenue = rawTotalRevenue;
   const totalTickets = records.reduce((acc, r) => {
     if (r.passes && Array.isArray(r.passes)) {
       return acc + r.passes.reduce((passAcc, p) => passAcc + (Number(p.quantity) || 0), 0);
@@ -99,39 +91,7 @@ function Records({ user, vendorData }) {
     return acc;
   }, 0);
 
-  // Calculate sold counts for passes
-  const soldCounts = {};
-  records.forEach(r => {
-    if (r.passes && Array.isArray(r.passes)) {
-      r.passes.forEach(p => {
-        const id = p.passId || p.name;
-        if (id) {
-          soldCounts[id] = (soldCounts[id] || 0) + (Number(p.quantity) || 1);
-        }
-      });
-    }
-  });
 
-  const handleLimitChange = (index, value) => {
-    const updatedPasses = [...profilePasses];
-    updatedPasses[index].limit = value;
-    setProfilePasses(updatedPasses);
-    setIsLimitsChanged(true);
-  };
-
-  const saveLimits = async () => {
-    if (!profileDocId) return;
-    try {
-      await db.collection('EventTicketRegistration').doc(profileDocId).update({
-        passes: profilePasses
-      });
-      showToast('Pass limits updated successfully!', 'success');
-      setIsLimitsChanged(false);
-    } catch (e) {
-      console.error(e);
-      showToast('Failed to update pass limits.', 'error');
-    }
-  };
 
 
 
@@ -173,94 +133,20 @@ function Records({ user, vendorData }) {
 
       <div className="stats-grid">
         <div className="stat-card">
-          <h4>Total Revenue (After Fees)</h4>
-          <p>₹{totalRevenue}</p>
+          <p>{profileViews}</p>
+          <h4>Profile Views</h4>
         </div>
         <div className="stat-card">
-          <h4>Checked In</h4>
+          <p>₹{totalRevenue}</p>
+          <h4>Total Revenue</h4>
+        </div>
+        <div className="stat-card">
           <p>{totalVisited} / {totalTickets}</p>
+          <h4>Checked In</h4>
         </div>
       </div>
 
-      <p style={{ color: 'gray', fontSize: '0.85rem', margin: '0.5rem 0 1rem 0', textAlign: 'center' }}>
-        * Total Revenue (After Fees) is calculated by deducting a 5% commission and 18% GST on that commission from the gross revenue.
-      </p>
 
-      {/* Pass Limits & Sales (Moved above Recent Bookings) */}
-      {profilePasses.length > 0 && (
-        <div style={{ marginBottom: '1.5rem', padding: '0.5rem', borderRadius: '12px', background: 'var(--bg-surface-light)', border: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem' }}>Ticket Sales & Limits</h4>
-            {isLimitsChanged && (
-              <button onClick={saveLimits} className="primary-btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto' }}>
-                Save Limits
-              </button>
-            )}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {profilePasses.map((pass, index) => {
-              const sold = soldCounts[pass.passId] || soldCounts[pass.name] || 0;
-              const hasLimit = pass.limit && String(pass.limit).trim() !== '';
-              const limit = hasLimit ? Number(pass.limit) : Infinity;
-              const isReached = hasLimit && sold >= limit;
-              const remaining = Math.max(0, limit - sold);
-              const isLowStock = hasLimit && remaining <= 5 && !isReached;
-
-              return (
-                <div key={`alert-${pass.passId || index}`} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '10px',
-                  padding: '0.75rem',
-                  background: isReached ? 'rgba(239, 68, 68, 0.12)' : (isLowStock ? 'rgba(245, 158, 11, 0.12)' : 'var(--bg-color)'),
-                  border: `1px solid ${isReached ? '#ef4444' : (isLowStock ? '#f59e0b' : 'var(--border-color)')}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <strong>{pass.name || 'Unnamed Pass'}</strong>
-                      {isLowStock && (
-                        <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', background: '#f59e0b', color: '#fff', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <AlertTriangle size={12} /> Low Limit ({remaining} left)
-                        </span>
-                      )}
-                      {isReached && (
-                        <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', background: '#ef4444', color: '#fff', fontWeight: '700' }}>
-                          Sold Out
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: isReached ? '#ef4444' : (isLowStock ? '#d97706' : 'var(--text-secondary)'), marginTop: '4px', fontWeight: (isLowStock || isReached) ? '600' : 'normal' }}>
-                      {hasLimit ? (isReached ? 'Limit reached! Please increase limit.' : (isLowStock ? `⚠️ Only ${remaining} remaining! Please increase your limit.` : `${remaining} remaining`)) : 'Unlimited'}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                    <span>Sold: <strong style={{ color: 'var(--text-primary)' }}>{sold}</strong> / Limit:</span>
-                    <input
-                      type="number"
-                      min={sold}
-                      value={pass.limit || ''}
-                      onChange={(e) => handleLimitChange(index, e.target.value)}
-                      placeholder="∞"
-                      style={{
-                        width: '75px',
-                        padding: '0.35rem',
-                        border: `1px solid ${isReached ? '#ef4444' : (isLowStock ? '#f59e0b' : 'var(--border-color)')}`,
-                        borderRadius: '6px',
-                        background: 'var(--bg-surface)',
-                        color: 'var(--text-primary)',
-                        fontWeight: '600'
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       <h3>Recent Bookings</h3>
       <div className="records-list" style={{ marginTop: '1rem' }}>

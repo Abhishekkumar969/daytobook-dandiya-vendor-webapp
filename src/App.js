@@ -69,10 +69,7 @@ function App() {
   const [loading, setLoading] = useState(true);
 
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('app-theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-  }, []);
+
 
   useEffect(() => {
     if (vendorData?.email) {

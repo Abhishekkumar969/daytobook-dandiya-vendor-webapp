@@ -21,6 +21,21 @@ function Scanner({ user, vendorData }) {
   const [filteredTickets, setFilteredTickets] = useState([]);
   const [selectedSearchTicket, setSelectedSearchTicket] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchContainerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setIsSearchOpen(false);
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Use vendorData email if available, otherwise fallback to user.email
   const cleanEmail = (vendorData?.email || user.email).toLowerCase().trim();
@@ -303,6 +318,7 @@ function Scanner({ user, vendorData }) {
   const handleSelectSearchTicket = (ticket) => {
     setSelectedSearchTicket(ticket);
     setShowDropdown(false);
+    setIsSearchOpen(false);
     try {
       if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
         html5QrCodeRef.current.pause(true);
@@ -317,47 +333,72 @@ function Scanner({ user, vendorData }) {
   return (
     <div className="scanner-container">
       
-      {/* Search Bar Overlay */}
-      <div className="scanner-search-container" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
-          <div className="search-input-wrapper">
-            <Search size={20} className="search-icon" />
-            <input 
-              type="text" 
-              className="scanner-search-input"
-              placeholder="Search ticket by name or phone..." 
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onFocus={() => { if (filteredTickets.length > 0) setShowDropdown(true); }}
-            />
-          </div>
+      {/* Header Overlay */}
+      <div ref={searchContainerRef} className="scanner-search-container" style={{ display: 'flex', flexDirection: 'column', width: '90%', maxWidth: '400px', pointerEvents: 'auto' }}>
+        
+        {/* Top Row: Logo & Search Icon */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', width: '100%' }}>
+          <img src="/DayToBook_Bg_tRANSPARET_Logo.png" alt="DayToBook" style={{ width: '40vw', maxWidth: '200px', objectFit: 'contain' }} />
           
-          {showDropdown && filteredTickets.length > 0 && (
-            <div className="search-dropdown">
-              {filteredTickets.map(ticket => (
-                <div 
-                  key={ticket.id} 
-                  className="search-result-item"
-                  onClick={() => handleSelectSearchTicket(ticket)}
-                >
-                  <div className="result-tkt" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>
-                    {ticket.bookingId || ticket.id}
-                  </div>
-                  <div className="result-name">{ticket.customerName || `${ticket.firstName || ''} ${ticket.lastName || ''}`.trim() || 'Unknown'}</div>
-                  <div className="result-phone">{ticket.customerPhone || ticket.phone}</div>
-                  <div className="result-status">
-                    {(ticket.visited || (ticket.visits && ticket.visits.visited)) ? <span className="visited-text">Visited</span> : <span className="pending-text">Pending</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div 
+            onClick={() => setIsSearchOpen(!isSearchOpen)}
+            style={{ position: 'absolute', right: 0, cursor: 'pointer', background: 'var(--nav-bg)', borderRadius: '50%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', backdropFilter: 'blur(10px)' }}
+          >
+            <Search size={20} color={isSearchOpen ? "var(--error-color)" : "var(--primary-color)"} />
+          </div>
         </div>
 
+        {/* Expandable Search Bar */}
+        <div style={{ 
+          overflow: showDropdown ? 'visible' : 'hidden', 
+          transition: 'all 0.3s ease-in-out', 
+          maxHeight: isSearchOpen ? (showDropdown ? '600px' : '60px') : '0px', 
+          opacity: isSearchOpen ? 1 : 0, 
+          marginTop: isSearchOpen ? '10px' : '0px',
+          width: '100%',
+          pointerEvents: isSearchOpen ? 'auto' : 'none'
+        }}>
+          <div style={{ position: 'relative' }}>
+            <div className="search-input-wrapper">
+              <Search size={20} className="search-icon" />
+              <input 
+                type="text" 
+                className="scanner-search-input"
+                placeholder="Search ticket by name or phone..." 
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onFocus={() => { if (filteredTickets.length > 0) setShowDropdown(true); }}
+              />
+            </div>
+            
+            {showDropdown && filteredTickets.length > 0 && (
+              <div className="search-dropdown">
+                {filteredTickets.map(ticket => (
+                  <div 
+                    key={ticket.id} 
+                    className="search-result-item"
+                    onClick={() => handleSelectSearchTicket(ticket)}
+                  >
+                    <div className="result-tkt" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>
+                      {ticket.bookingId || ticket.id}
+                    </div>
+                    <div className="result-name">{ticket.customerName || `${ticket.firstName || ''} ${ticket.lastName || ''}`.trim() || 'Unknown'}</div>
+                    <div className="result-phone">{ticket.customerPhone || ticket.phone}</div>
+                    <div className="result-status">
+                      {(ticket.visited || (ticket.visits && ticket.visits.visited)) ? <span className="visited-text">Visited</span> : <span className="pending-text">Pending</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="scanner-box">
         <div id="reader"></div>
+        {/* Gradient Overlay */}
+        <div className="scanner-gradient-overlay"></div>
         {/* Laser Line Overlay */}
         <div className="scanner-overlay">
            <div className="laser-line"></div>
