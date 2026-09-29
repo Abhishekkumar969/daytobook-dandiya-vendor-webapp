@@ -320,15 +320,13 @@ function Access({ user, vendorData }) {
                     })}
                   </div>
                 </div>
-                {staff.email !== user?.email && (
-                  <button
-                    onClick={() => handleRevokeAccess(staff.email)}
-                    className="icon-btn delete-btn"
-                    title="Revoke Access"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                )}
+                <button
+                  onClick={() => handleRevokeAccess(staff.email)}
+                  className="icon-btn delete-btn"
+                  title="Revoke Access"
+                >
+                  <Trash2 size={20} />
+                </button>
               </div>
             ))}
           </div>
