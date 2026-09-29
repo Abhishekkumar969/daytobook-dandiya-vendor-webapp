@@ -405,7 +405,7 @@ function Scanner({ user, vendorData }) {
           
           <div 
             onClick={() => setIsSearchOpen(!isSearchOpen)}
-            style={{ position: 'absolute', right: 0, cursor: 'pointer', background: 'var(--nav-bg)', borderRadius: '50%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', backdropFilter: 'blur(10px)' }}
+            style={{ position: 'absolute', left: 0, cursor: 'pointer', background: 'var(--nav-bg)', borderRadius: '50%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', backdropFilter: 'blur(10px)' }}
           >
             <Search size={20} color={isSearchOpen ? "var(--error-color)" : "var(--primary-color)"} />
           </div>
@@ -482,6 +482,21 @@ function Scanner({ user, vendorData }) {
         </div>
 
         {isProcessing && <div className="processing-overlay">Processing...</div>}
+      </div>
+
+      {/* Refresh Scanner Button */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '15px', zIndex: 10, position: 'relative' }}>
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: '8px', 
+            padding: '10px 20px', borderRadius: '8px', 
+            background: 'var(--nav-bg, #1a1a1a)', color: 'var(--text-primary, #fff)', 
+            border: '1px solid var(--border-color, #333)', cursor: 'pointer', fontWeight: 'bold' 
+          }}
+        >
+          <RefreshCcw size={18} /> Refresh Scanner
+        </button>
       </div>
 
       {/* Manual Search Ticket Details */}

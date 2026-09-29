@@ -3,7 +3,6 @@ import { db } from '../firebase';
 import { CheckCircle, Clock, Search } from 'lucide-react';
 import { subscribeToOrganizerNotifications } from '../services/notificationService';
 
-
 function Records({ user, vendorData }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +19,7 @@ function Records({ user, vendorData }) {
     const cleanEmail = (vendorData?.email || user.email).toLowerCase().trim();
     const rootCollectionName = `Payments/EventTickets/Transactions`;
 
-    let unsubscribe = () => {};
+    let unsubscribe = () => { };
 
     db.collection("EventTicketRegistration")
       .where("email", "==", cleanEmail)
@@ -30,7 +29,7 @@ function Records({ user, vendorData }) {
         if (!snap.empty) {
           const docData = snap.docs[0].data();
           const vendorPassIds = new Set(
-             docData.passes ? docData.passes.map(p => p.passId).filter(Boolean) : []
+            docData.passes ? docData.passes.map(p => p.passId).filter(Boolean) : []
           );
 
           unsubscribe = db.collection(rootCollectionName)
@@ -89,7 +88,6 @@ function Records({ user, vendorData }) {
     return <div className="loading-screen">Loading Records...</div>;
   }
 
-  // Calculate stats
   const rawTotalRevenue = records.reduce((acc, r) => {
     const passTotal = r.subtotal || (r.passes ? r.passes.reduce((passAcc, p) => passAcc + ((Number(String(p.price).replace(/[^0-9.-]+/g, "")) || 0) * (Number(p.quantity) || 1)), 0) : 0);
     return acc + (Number(passTotal) || Number(r.totalAmount) || 0);
@@ -112,10 +110,6 @@ function Records({ user, vendorData }) {
     }
     return acc;
   }, 0);
-
-
-
-
 
   const filteredRecords = records.filter(record => {
     if (!searchQuery) return true;
