@@ -23,6 +23,13 @@ function Scanner({ user, vendorData }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchContainerRef = useRef(null);
+  
+  const [vendorPassIds, setVendorPassIds] = useState(new Set());
+  const vendorPassIdsRef = useRef(new Set());
+  
+  useEffect(() => {
+    vendorPassIdsRef.current = vendorPassIds;
+  }, [vendorPassIds]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -38,9 +45,28 @@ function Scanner({ user, vendorData }) {
   }, []);
 
   // Use vendorData email if available, otherwise fallback to user.email
-  // const cleanEmail = (vendorData?.email || user.email).toLowerCase().trim();
-  // Fetch all tickets for search on mount
+  const cleanEmail = (vendorData?.email || user.email).toLowerCase().trim();
+  // Fetch vendor EventTicketRegistration docId and passes
   useEffect(() => {
+    db.collection("EventTicketRegistration")
+      .where("email", "==", cleanEmail)
+      .limit(1)
+      .get()
+      .then((snap) => {
+        if (!snap.empty) {
+          const docData = snap.docs[0].data();
+          const passIds = new Set(
+            docData.passes ? docData.passes.map(p => p.passId).filter(Boolean) : []
+          );
+          setVendorPassIds(passIds);
+        }
+      })
+      .catch((err) => console.error("Error fetching vendor doc:", err));
+  }, [cleanEmail]);
+
+  // Fetch all tickets for search on mount when vendorPassIds are available
+  useEffect(() => {
+    if (vendorPassIds.size === 0) return;
     const rootCollectionName = `Payments/EventTickets/Transactions`;
 
     const unsubscribe = db.collection(rootCollectionName)
@@ -49,7 +75,10 @@ function Scanner({ user, vendorData }) {
         snapshot.forEach(doc => {
           const data = doc.data();
           if (data.payment && data.payment.razorpayPaymentId) {
-            fetchedRecords.push({ id: doc.id, ...data });
+            const hasVendorPass = data.passes && data.passes.some(p => vendorPassIds.has(p.passId));
+            if (hasVendorPass) {
+              fetchedRecords.push({ id: doc.id, ...data });
+            }
           }
         });
         setAllTickets(fetchedRecords);
@@ -58,8 +87,7 @@ function Scanner({ user, vendorData }) {
       });
 
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, vendorData?.email]);
+  }, [vendorPassIds]);
 
   useEffect(() => {
     // 1. Get cameras
@@ -220,6 +248,18 @@ function Scanner({ user, vendorData }) {
       }
 
       const data = ticketDoc.data();
+
+      const hasVendorPass = data.passes && data.passes.some(p => vendorPassIdsRef.current.has(p.passId));
+
+      if (!hasVendorPass) {
+        setScanResult({
+          status: 'error',
+          message: 'Invalid Ticket. This ticket does not belong to your event.'
+        });
+        setIsProcessing(false);
+        isProcessingRef.current = false;
+        return;
+      }
 
       if (!data.payment || !data.payment.razorpayPaymentId) {
         setScanResult({

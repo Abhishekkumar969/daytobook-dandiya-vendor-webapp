@@ -141,7 +141,6 @@ function Profile({ user, vendorData }) {
   useEffect(() => {
     const cleanEmail = (vendorData?.email || user.email).trim();
     let unsubscribeProfile = () => { };
-    let unsubscribeTickets = () => { };
 
     try {
       unsubscribeProfile = db.collection("EventTicketRegistration")
@@ -215,8 +214,21 @@ function Profile({ user, vendorData }) {
           setLoading(false);
         });
 
-      const collectionName = `Payments/EventTickets/Transactions`;
-      unsubscribeTickets = db.collection(collectionName).onSnapshot((ticketsSnap) => {
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load profile.');
+      setLoading(false);
+    }
+
+    return () => {
+      unsubscribeProfile();
+    };
+  }, [user, vendorData]);
+
+  useEffect(() => {
+    if (!docId) return;
+    const unsubscribeTickets = db.collection(`Payments/EventTickets/Transactions`)
+      .onSnapshot((ticketsSnap) => {
         const soldIds = new Set();
         ticketsSnap.forEach(tDoc => {
           const tData = tDoc.data();
@@ -237,18 +249,9 @@ function Profile({ user, vendorData }) {
       }, (err) => {
         console.error("Error fetching tickets: ", err);
       });
-
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load profile.');
-      setLoading(false);
-    }
-
-    return () => {
-      unsubscribeProfile();
-      unsubscribeTickets();
-    };
-  }, [user, vendorData]);
+      
+    return () => unsubscribeTickets();
+  }, [docId]);
 
   useEffect(() => {
     if (loading || autoOpenRef.current) return;

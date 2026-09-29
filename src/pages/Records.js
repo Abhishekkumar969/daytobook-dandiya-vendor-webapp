@@ -20,21 +20,50 @@ function Records({ user, vendorData }) {
     const cleanEmail = (vendorData?.email || user.email).toLowerCase().trim();
     const rootCollectionName = `Payments/EventTickets/Transactions`;
 
+    let unsubscribe = () => {};
 
-    const unsubscribe = db.collection(rootCollectionName)
-      .orderBy('createdAt', 'desc')
-      .onSnapshot((snapshot) => {
-        const fetchedRecords = [];
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          if (data.payment && data.payment.razorpayPaymentId) {
-            fetchedRecords.push({ id: doc.id, ...data });
-          }
-        });
-        setRecords(fetchedRecords);
-        setLoading(false);
-      }, (err) => {
-        console.error("Error fetching records: ", err);
+    db.collection("EventTicketRegistration")
+      .where("email", "==", cleanEmail)
+      .limit(1)
+      .get()
+      .then((snap) => {
+        if (!snap.empty) {
+          const docData = snap.docs[0].data();
+          const vendorPassIds = new Set(
+             docData.passes ? docData.passes.map(p => p.passId).filter(Boolean) : []
+          );
+
+          unsubscribe = db.collection(rootCollectionName)
+            .onSnapshot((snapshot) => {
+              const fetchedRecords = [];
+              snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.payment && data.payment.razorpayPaymentId) {
+                  const hasVendorPass = data.passes && data.passes.some(p => vendorPassIds.has(p.passId));
+                  if (hasVendorPass) {
+                    fetchedRecords.push({ id: doc.id, ...data });
+                  }
+                }
+              });
+
+              fetchedRecords.sort((a, b) => {
+                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                return dateB - dateA;
+              });
+
+              setRecords(fetchedRecords);
+              setLoading(false);
+            }, (err) => {
+              console.error("Error fetching records: ", err);
+              setLoading(false);
+            });
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching vendor doc: ", err);
         setLoading(false);
       });
 
@@ -147,12 +176,12 @@ function Records({ user, vendorData }) {
 
 
       <h3>Recent Bookings</h3>
-      
+
       <div className="search-input-wrapper" style={{ position: 'relative', marginTop: '1rem', marginBottom: '1rem', width: '100%', maxWidth: '400px' }}>
         <Search size={20} className="search-icon" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-        <input 
-          type="text" 
-          placeholder="Search by name, email, or ID..." 
+        <input
+          type="text"
+          placeholder="Search by name, email, or ID..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-primary)', fontSize: '1rem' }}
