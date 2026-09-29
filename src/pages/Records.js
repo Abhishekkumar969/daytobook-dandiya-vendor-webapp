@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { CheckCircle, Clock } from 'lucide-react';
+import { CheckCircle, Clock, Search } from 'lucide-react';
 import { subscribeToOrganizerNotifications } from '../services/notificationService';
 
 
 function Records({ user, vendorData }) {
   const [records, setRecords] = useState([]);
-  const [profileViews, setProfileViews] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expandedRecordId, setExpandedRecordId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState(null); // { message: '', type: 'success' | 'error' }
 
   const showToast = (message, type = 'success') => {
@@ -18,25 +18,18 @@ function Records({ user, vendorData }) {
 
   useEffect(() => {
     const cleanEmail = (vendorData?.email || user.email).toLowerCase().trim();
-    const rootCollectionName = `${cleanEmail}_ticket`;
+    const rootCollectionName = `Payments/EventTickets/Transactions`;
 
-    // Fetch vendor profile for passes limits
-    db.collection('EventTicketRegistration').where('email', '==', cleanEmail).limit(1).get()
-      .then(snap => {
-        if (!snap.empty) {
-          const doc = snap.docs[0];
-          const data = doc.data();
-          setProfileViews(data.opened || 0);
-        }
-      })
-      .catch(err => console.error("Error fetching vendor profile passes: ", err));
 
     const unsubscribe = db.collection(rootCollectionName)
       .orderBy('createdAt', 'desc')
       .onSnapshot((snapshot) => {
         const fetchedRecords = [];
         snapshot.forEach(doc => {
-          fetchedRecords.push({ id: doc.id, ...doc.data() });
+          const data = doc.data();
+          if (data.payment && data.payment.razorpayPaymentId) {
+            fetchedRecords.push({ id: doc.id, ...data });
+          }
         });
         setRecords(fetchedRecords);
         setLoading(false);
@@ -95,6 +88,15 @@ function Records({ user, vendorData }) {
 
 
 
+  const filteredRecords = records.filter(record => {
+    if (!searchQuery) return true;
+    const lowerQuery = searchQuery.toLowerCase();
+    const name = (record.customerName || `${record.firstName || ''} ${record.lastName || ''}`).toLowerCase();
+    const email = (record.customerEmail || record.email || '').toLowerCase();
+    const txId = (record.transactionId || record.id || '').toLowerCase();
+    return name.includes(lowerQuery) || email.includes(lowerQuery) || txId.includes(lowerQuery);
+  });
+
   return (
     <div className="records-container">
       {/* Toast Notification */}
@@ -133,10 +135,6 @@ function Records({ user, vendorData }) {
 
       <div className="stats-grid">
         <div className="stat-card">
-          <p>{profileViews}</p>
-          <h4>Profile Views</h4>
-        </div>
-        <div className="stat-card">
           <p>₹{totalRevenue}</p>
           <h4>Total Revenue</h4>
         </div>
@@ -149,11 +147,23 @@ function Records({ user, vendorData }) {
 
 
       <h3>Recent Bookings</h3>
-      <div className="records-list" style={{ marginTop: '1rem' }}>
-        {records.length === 0 ? (
+      
+      <div className="search-input-wrapper" style={{ position: 'relative', marginTop: '1rem', marginBottom: '1rem', width: '100%', maxWidth: '400px' }}>
+        <Search size={20} className="search-icon" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+        <input 
+          type="text" 
+          placeholder="Search by name, email, or ID..." 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-primary)', fontSize: '1rem' }}
+        />
+      </div>
+
+      <div className="records-list">
+        {filteredRecords.length === 0 ? (
           <p>No bookings found.</p>
         ) : (
-          records.map((record) => (
+          filteredRecords.map((record) => (
             <div
               key={record.id}
               className="record-item"
@@ -163,7 +173,6 @@ function Records({ user, vendorData }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="record-info">
                   <h4>{record.customerName || `${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Unknown Customer'}</h4>
-                  <p>{record.customerPhone || record.phone || 'No Phone'}</p>
                   <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>
                     {record.passes && record.passes.map(p => `${p.quantity}x ${p.name}${p.price ? ` (${String(p.price).includes('₹') ? p.price : `₹${p.price}`})` : ''}`).join(', ')}
                   </p>

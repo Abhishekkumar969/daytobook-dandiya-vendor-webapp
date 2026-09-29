@@ -698,19 +698,15 @@ body {
   z-index: 9;
   background:
     linear-gradient(to bottom,
-      rgba(231, 46, 119, 0.95) 0%,
-      #e72e7873 calc(50% - 45vmin),
-      transparent calc(50% - 34vmin),
-      transparent calc(50% + 34vmin),
-      #e72e7873 calc(50% + 45vmin),
-      rgba(231, 46, 119, 0.95) 100%),
+      rgba(231, 46, 119, 0.9) 0%,
+      rgba(231, 46, 119, 0.2) 20%,
+      transparent 40%,
+      transparent 100%),
     linear-gradient(to right,
-      rgba(231, 46, 119, 0.95) 0%,
-      #e72e7873 calc(50% - 45vmin),
-      transparent calc(50% - 34vmin),
-      transparent calc(50% + 34vmin),
-      #e72e7873 calc(50% + 45vmin),
-      rgba(231, 46, 119, 0.95) 100%);
+      rgba(231, 46, 119, 0.15) 0%,
+      transparent 10%,
+      transparent 90%,
+      rgba(231, 46, 119, 0.15) 100%);
 }
 
 .laser-line {

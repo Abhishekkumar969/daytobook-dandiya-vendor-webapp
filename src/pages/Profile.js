@@ -118,7 +118,6 @@ function Profile({ user, vendorData }) {
   const [initialPartners, setInitialPartners] = useState([]);
   const [initialMainImage, setInitialMainImage] = useState(null);
   const [purchasedPassIds, setPurchasedPassIds] = useState(new Set());
-  const [soldPassCounts, setSoldPassCounts] = useState({});
   const [uploadingArtistIndex, setUploadingArtistIndex] = useState(null);
   const [uploadingPartnerIndex, setUploadingPartnerIndex] = useState(null);
 
@@ -216,28 +215,25 @@ function Profile({ user, vendorData }) {
           setLoading(false);
         });
 
-      const collectionName = `${cleanEmail.toLowerCase()}_ticket`;
+      const collectionName = `Payments/EventTickets/Transactions`;
       unsubscribeTickets = db.collection(collectionName).onSnapshot((ticketsSnap) => {
         const soldIds = new Set();
-        const counts = {};
         ticketsSnap.forEach(tDoc => {
           const tData = tDoc.data();
-          if (tData.passes && Array.isArray(tData.passes)) {
-            tData.passes.forEach(p => {
-              const qty = Number(p.quantity) || 1;
-              if (p.passId) {
-                soldIds.add(p.passId);
-                counts[p.passId] = (counts[p.passId] || 0) + qty;
-              }
-              if (p.name) {
-                soldIds.add(p.name);
-                counts[p.name] = (counts[p.name] || 0) + qty;
-              }
-            });
+          if (tData.payment && tData.payment.razorpayPaymentId) {
+            if (tData.passes && Array.isArray(tData.passes)) {
+              tData.passes.forEach(p => {
+                if (p.passId) {
+                  soldIds.add(p.passId);
+                }
+                if (p.name) {
+                  soldIds.add(p.name);
+                }
+              });
+            }
           }
         });
         setPurchasedPassIds(soldIds);
-        setSoldPassCounts(counts);
       }, (err) => {
         console.error("Error fetching tickets: ", err);
       });
@@ -256,22 +252,8 @@ function Profile({ user, vendorData }) {
 
   useEffect(() => {
     if (loading || autoOpenRef.current) return;
-
-    let limitReached = false;
-    for (const pass of passes) {
-      const soldCount = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
-      if (pass.limit && Number(pass.limit) <= soldCount && soldCount > 0) {
-        limitReached = true;
-        break;
-      }
-    }
-
-    if (limitReached) {
-      setExpandedSection('Event Passes');
-    }
     autoOpenRef.current = true;
-  }, [passes, soldPassCounts, loading]);
-
+  }, [loading]);
   const isSectionDirty = (sectionName) => {
     if (!initialProfileData) return false;
 
@@ -285,11 +267,7 @@ function Profile({ user, vendorData }) {
         ts(profileData.phone3) !== ts(initialProfileData.phone3);
     }
     if (sectionName === 'Event Details') {
-      return ts(profileData.name) !== ts(initialProfileData.name) ||
-        ts(profileData.category) !== ts(initialProfileData.category) ||
-        ts(profileData.date) !== ts(initialProfileData.date) ||
-        ts(profileData.time) !== ts(initialProfileData.time) ||
-        ts(profileData.about) !== ts(initialProfileData.about) ||
+      return ts(profileData.about) !== ts(initialProfileData.about) ||
         mainImage !== initialMainImage;
     }
     if (sectionName === 'Venue Details') {
@@ -312,15 +290,13 @@ function Profile({ user, vendorData }) {
         ...p,
         name: ts(p.name),
         description: ts(p.description),
-        price: ts(p.price),
-        limit: ts(p.limit)
+        price: ts(p.price)
       }));
       const cleanInitialPasses = initialPasses.map(p => ({
         ...p,
         name: ts(p.name),
         description: ts(p.description),
-        price: ts(p.price),
-        limit: ts(p.limit)
+        price: ts(p.price)
       }));
       return JSON.stringify(cleanPasses) !== JSON.stringify(cleanInitialPasses);
     }
@@ -469,19 +445,6 @@ function Profile({ user, vendorData }) {
     setMessage('');
     setError('');
 
-    // Validate Pass Limits
-    if (sectionName === 'Event Passes' || sectionName === 'Save All') {
-      for (const p of passes) {
-        if (p.limit && p.limit.trim() !== '') {
-          const sold = soldPassCounts[p.passId] || soldPassCounts[p.name] || 0;
-          if (Number(p.limit) < sold) {
-            setError(`Cannot set limit for "${p.name}" below already sold quantity (${sold}).`);
-            setSavingSection(null);
-            return;
-          }
-        }
-      }
-    }
 
     try {
       const dataToSave = {
@@ -554,13 +517,8 @@ function Profile({ user, vendorData }) {
         }
         break;
       case 'Event Details':
-        if (isApproved) {
-          total = 3;
-          filled = [profileData.time, profileData.about, mainImage].filter(v => v && v.toString().trim() !== '').length;
-        } else {
-          total = 6;
-          filled = [profileData.name, profileData.category, profileData.date, profileData.time, profileData.about, mainImage].filter(v => v && v.toString().trim() !== '').length;
-        }
+        total = 2;
+        filled = [profileData.about, mainImage].filter(v => v && v.toString().trim() !== '').length;
         break;
       case 'Event Artists':
         total = 1;
@@ -609,10 +567,7 @@ function Profile({ user, vendorData }) {
     return <div className="loading-screen">Loading Profile...</div>;
   }
 
-  const isAnyPassLimitReached = passes.some(pass => {
-    const soldCount = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
-    return pass.limit && Number(pass.limit) <= soldCount && soldCount > 0;
-  });
+
 
   const isAnyPassInvalid = passes.some(pass => {
     const nameStr = (pass.name || '').toString().trim();
@@ -624,7 +579,12 @@ function Profile({ user, vendorData }) {
     <div className="records-container" style={{ paddingBottom: '2rem' }}>
       <div className="records-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100, backgroundColor: 'var(--bg-color)', padding: '1rem' }}>
         <div>
-          <h2>Profile</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            Profile 
+            <span style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
+              ({profileData.opened || 0} views)
+            </span>
+          </h2>
         </div>
       </div>
 
@@ -714,7 +674,7 @@ function Profile({ user, vendorData }) {
 
         {/* Section 4: Event Passes */}
         <div className={`accordion-item ${expandedSection === 'Event Passes' ? 'expanded' : ''}`}>
-          <div className="accordion-header" onClick={() => toggleSection('Event Passes')} style={(isAnyPassLimitReached && expandedSection !== 'Event Passes') ? { border: '2px solid var(--error-color)', borderRadius: '8px' } : {}}>
+          <div className="accordion-header" onClick={() => toggleSection('Event Passes')}>
             <div className="accordion-title">
               <Ticket size={18} /> Event Passes {renderPercentage('Event Passes')}
             </div>
@@ -728,10 +688,8 @@ function Profile({ user, vendorData }) {
             <div className="passes-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {passes.map((pass, index) => {
                 const isPurchased = purchasedPassIds.has(pass.passId) || purchasedPassIds.has(pass.name);
-                const soldCount = soldPassCounts[pass.passId] || soldPassCounts[pass.name] || 0;
-                const isLimitReached = pass.limit && Number(pass.limit) <= soldCount && soldCount > 0;
                 return (
-                  <div key={pass.passId || index} style={{ padding: '1rem', border: isLimitReached ? '2px solid var(--error-color)' : '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-color)', position: 'relative' }}>
+                  <div key={pass.passId || index} style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-color)', position: 'relative' }}>
                     {!isPurchased && (
                       <button type="button" onClick={() => removePass(index)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--error-color)', cursor: 'pointer' }}>
                         <Trash2 size={18} />
@@ -742,33 +700,9 @@ function Profile({ user, vendorData }) {
                       <input type="text" value={pass.name} onChange={(e) => handlePassChange(index, 'name', e.target.value)} disabled={isPurchased} required />
                     </div>
                     <div className="form-row">
-                      <div className="form-group half">
+                      <div className="form-group half" style={{ width: '100%' }}>
                         <label>Price (₹)</label>
                         <input type="number" min="0" step="1" value={pass.price} onKeyDown={handleKeyDownInt} onChange={(e) => handlePassChange(index, 'price', e.target.value)} required />
-                      </div>
-                      <div className="form-group half">
-                        <label>Limit / Max Capacity {soldCount > 0 && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>(Sold: {soldCount})</span>}</label>
-                        <input
-                          type="number"
-                          min={soldCount}
-                          value={pass.limit}
-                          onChange={(e) => handlePassChange(index, 'limit', e.target.value)}
-                          onKeyDown={handleKeyDownInt}
-                          onBlur={(e) => {
-                            if (pass.limit && Number(pass.limit) < soldCount) {
-                              handlePassChange(index, 'limit', soldCount);
-                              handlePassChange(index, 'limitError', 'Limit cannot be less than sold');
-                              setTimeout(() => handlePassChange(index, 'limitError', ''), 3000);
-                            }
-                          }}
-                          placeholder="Leave blank if unlimited"
-                          style={{
-                            borderColor: isLimitReached ? 'var(--error-color)' : undefined,
-                            color: isLimitReached ? 'var(--error-color)' : undefined
-                          }}
-                        />
-                        {isLimitReached && <div style={{ color: 'var(--error-color)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 'bold' }}>Please increase the limit</div>}
-                        {pass.limitError && !isLimitReached && <div style={{ color: 'var(--error-color)', fontSize: '0.8rem', marginTop: '4px' }}>{pass.limitError}</div>}
                       </div>
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
@@ -909,30 +843,7 @@ function Profile({ user, vendorData }) {
             </div>
           </div>
           <div className="accordion-body">
-            {profileData.status !== 'approved' && (
-              <div className="form-row">
-                <div className="form-group half">
-                  <label>Event Name</label>
-                  <input type="text" name="name" value={profileData.name} onChange={handleChange} required />
-                </div>
-                <div className="form-group half">
-                  <label>Category</label>
-                  <input type="text" name="category" value={profileData.category} onChange={handleChange} />
-                </div>
-              </div>
-            )}
-            <div className="form-row">
-              {profileData.status !== 'approved' && (
-                <div className="form-group half">
-                  <label>Event Date</label>
-                  <input type="date" name="date" value={profileData.date} onChange={handleChange} required />
-                </div>
-              )}
-              <div className="form-group half">
-                <label>Event Time</label>
-                <input type="time" name="time" value={profileData.time} onChange={handleChange} required />
-              </div>
-            </div>
+
             <div className="form-group">
               <label>About the Event</label>
               <textarea name="about" value={profileData.about} onChange={handleChange} rows={4} className="custom-textarea" />

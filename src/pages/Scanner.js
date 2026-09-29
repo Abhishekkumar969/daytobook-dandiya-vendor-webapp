@@ -38,17 +38,19 @@ function Scanner({ user, vendorData }) {
   }, []);
 
   // Use vendorData email if available, otherwise fallback to user.email
-  const cleanEmail = (vendorData?.email || user.email).toLowerCase().trim();
-
+  // const cleanEmail = (vendorData?.email || user.email).toLowerCase().trim();
   // Fetch all tickets for search on mount
   useEffect(() => {
-    const rootCollectionName = `${cleanEmail}_ticket`;
+    const rootCollectionName = `Payments/EventTickets/Transactions`;
 
     const unsubscribe = db.collection(rootCollectionName)
       .onSnapshot((snapshot) => {
         const fetchedRecords = [];
         snapshot.forEach(doc => {
-          fetchedRecords.push({ id: doc.id, ...doc.data() });
+          const data = doc.data();
+          if (data.payment && data.payment.razorpayPaymentId) {
+            fetchedRecords.push({ id: doc.id, ...data });
+          }
         });
         setAllTickets(fetchedRecords);
       }, (err) => {
@@ -185,8 +187,19 @@ function Scanner({ user, vendorData }) {
     setShowDropdown(false);
     setSearchQuery('');
 
+    // Basic validation to prevent invalid segment errors (e.g., from UPI QR codes)
+    if (!decodedText || typeof decodedText !== 'string' || decodedText.includes('/')) {
+      setScanResult({
+        status: 'error',
+        message: 'Invalid Ticket Format. Please scan a valid event ticket QR code.'
+      });
+      setIsProcessing(false);
+      isProcessingRef.current = false;
+      return;
+    }
+
     try {
-      const rootCollectionName = `${cleanEmail}_ticket`;
+      const rootCollectionName = `Payments/EventTickets/Transactions`;
       const ticketRef = db.collection(rootCollectionName);
       
       let ticketDoc = await ticketRef.doc(decodedText).get();
@@ -207,6 +220,16 @@ function Scanner({ user, vendorData }) {
       }
 
       const data = ticketDoc.data();
+
+      if (!data.payment || !data.payment.razorpayPaymentId) {
+        setScanResult({
+          status: 'error',
+          message: 'Payment Not Valid. No valid payment ID found.'
+        });
+        setIsProcessing(false);
+        isProcessingRef.current = false;
+        return;
+      }
 
       if (data.visited || (data.visits && data.visits.visited)) {
         if (navigator.vibrate) navigator.vibrate(200);
