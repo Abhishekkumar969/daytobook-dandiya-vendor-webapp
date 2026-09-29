@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { auth, db } from './firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { ScanLine, ListChecks, User, KeyRound } from 'lucide-react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { ScanLine, ListChecks, User, KeyRound, LogOut } from 'lucide-react';
 
 import Login from './pages/Login';
 import Scanner from './pages/Scanner';
@@ -175,9 +175,42 @@ function App() {
 
   const showNav = user && vendorData && vendorData.access && vendorData.access.length > 1;
 
+  const handleLogout = () => signOut(auth);
+
   return (
     <Router>
       <div className={`app-container ${showNav ? 'has-nav' : ''}`}>
+
+        {/* Global Logout Button — top right on all authenticated pages */}
+        {user && vendorData && (
+          <button
+            onClick={handleLogout}
+            title="Logout"
+            style={{
+              position: 'fixed',
+              top: '12px',
+              right: '14px',
+              zIndex: 9999,
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: '50%',
+              width: '38px',
+              height: '38px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,80,80,0.15)'; e.currentTarget.style.color = '#ff5050'; e.currentTarget.style.borderColor = '#ff5050'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+          >
+            <LogOut size={17} />
+          </button>
+        )}
+
         <div className="main-content">
           <Routes>
             <Route path="/login" element={user && vendorData ? <Navigate to={getFallbackRoute(vendorData.access)} /> : <Login />} />
