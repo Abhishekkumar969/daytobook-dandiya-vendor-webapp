@@ -293,13 +293,15 @@ function Profile({ user, vendorData }) {
         ...p,
         name: ts(p.name),
         description: ts(p.description),
-        price: ts(p.price)
+        price: ts(p.price),
+        validTill: ts(p.validTill)
       }));
       const cleanInitialPasses = initialPasses.map(p => ({
         ...p,
         name: ts(p.name),
         description: ts(p.description),
-        price: ts(p.price)
+        price: ts(p.price),
+        validTill: ts(p.validTill)
       }));
       return JSON.stringify(cleanPasses) !== JSON.stringify(cleanInitialPasses);
     }
@@ -400,7 +402,7 @@ function Profile({ user, vendorData }) {
 
   const addPass = () => {
     const passId = Math.random().toString(36).substring(2, 15);
-    setPasses([...passes, { passId, name: '', price: '', description: '', limit: '' }]);
+    setPasses([...passes, { passId, name: '', price: '', description: '', limit: '', validTill: '' }]);
   };
 
   const removePass = (index) => {
@@ -711,6 +713,10 @@ function Profile({ user, vendorData }) {
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label>Features separated with comma</label>
                       <input type="text" value={pass.description} onChange={(e) => handlePassChange(index, 'description', e.target.value)} />
+                    </div>
+                    <div className="form-group" style={{ marginTop: '1rem', marginBottom: 0 }}>
+                      <label>Valid Till</label>
+                      <input type="date" value={pass.validTill || ''} onChange={(e) => handlePassChange(index, 'validTill', e.target.value)} />
                     </div>
                   </div>
                 );
